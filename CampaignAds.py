@@ -5,12 +5,9 @@ import pypeln as pl
 from playwright.async_api import Playwright, async_playwright
 
 
-async def appealAd(ocid: int):
-  async with async_playwright() as playwright:
-    browser = await playwright.chromium.connect_over_cdp("http://localhost:9222")
+async def appealGoogle(browser, ocid: int):    
     default_context = browser.contexts[0]
-    page = default_context.pages[0]
-
+    page = default_context.pages
     await page.goto(f"https://ads.google.com/aw/ads?ocid={ocid}&hl=en")
 
     # step 1: hover pending
@@ -33,14 +30,22 @@ async def appealAd(ocid: int):
     submitBtn = page.locator('material-button.btn-yes>.content').get_by_text("Submit")
     print(submitBtn)
     await submitBtn.click()
+    
+    if browser is None:
+        await page.close()
+        await default_context.close()
   
-async def appealAds(list_ocid):
-  await pl.task.map(appealAd, list_ocid, workers=10)
+async def appealAds(ocid):
+  async with async_playwright() as playwright:
+    browser = await playwright.chromium.connect_over_cdp("http://localhost:9222")
+    await appealGoogle(browser, ocid)
+
+    return browser 
   # result = await pl.task.map(appealAd, list_ocid, workers=10)
   # print(json.dumps(result, indent=4))
 
 async def main():
   list_ocid = [1287196733,1262489681,1287027799,1287137976,1271539610,1266318633,1266376217]
-  await appealAds(list_ocid)
+  await pl.task.map(appealAds, list_ocid, workers=10)
 
 asyncio.run(main())
