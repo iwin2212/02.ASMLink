@@ -1,0 +1,6 @@
+ipykernel
+aiohttp
+capmonstercloudclient
+pypeln
+playwright
+bs4
