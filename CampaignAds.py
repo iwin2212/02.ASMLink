@@ -6,8 +6,7 @@ from playwright.async_api import Playwright, async_playwright
 
 
 async def appealGoogle(browser, ocid: int):    
-    default_context = browser.contexts[0]
-    page = default_context.pages
+    page = await browser.new_page()
     await page.goto(f"https://ads.google.com/aw/ads?ocid={ocid}&hl=en")
 
     # step 1: hover pending
@@ -32,8 +31,7 @@ async def appealGoogle(browser, ocid: int):
     await submitBtn.click()
     
     if browser is None:
-        await page.close()
-        await default_context.close()
+      await page.close()
   
 async def appealAds(ocid):
   async with async_playwright() as playwright:
@@ -41,8 +39,6 @@ async def appealAds(ocid):
     await appealGoogle(browser, ocid)
 
     return browser 
-  # result = await pl.task.map(appealAd, list_ocid, workers=10)
-  # print(json.dumps(result, indent=4))
 
 async def main():
   list_ocid = [1287196733,1262489681,1287027799,1287137976,1271539610,1266318633,1266376217]
