@@ -12,7 +12,7 @@ async def appealGoogle(page):
     await page.bring_to_front()
     pendingEles = await page.locator('.status-text').all()
     ocid = parse_qs(urlparse(page.url).query).get('ocid', [None])[0]
-    
+
     for i, pendingEle in enumerate(pendingEles):
       # step 1: hover pending
       await pendingEle.is_visible()
@@ -32,9 +32,9 @@ async def appealGoogle(page):
         #step 4: submit
         submitBtn = page.locator('material-button.btn-yes>.content').get_by_text("Submit")
         await submitBtn.click()
-        print('Ocid: {}; Campaign {} appeal success!'.format(ocid, i+1))
+        print('Ocid: {}: Campaign {} appeal success!'.format(ocid, i+1))
       except:
-        print('Ocid: {}; Campaign {} has been appealed!'.format(ocid, i+1))
+        print('Ocid: {}: Campaign {} has been appealed!'.format(ocid, i+1))
     await page.close()
     return id
   
