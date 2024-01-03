@@ -12,7 +12,7 @@ from enum import Enum
 import json
 import asyncio
 from urllib.parse import quote
-from crawler import WithblazeAndFlocksocialCrawler, DescribelyAndPostaffiliateproCrawler, AffiliatlyComCrawler
+from crawler import *
 
 class UrlCrawler(Enum):
     Goaffpro = 'https://allpowers.goaffpro.com/login'
@@ -27,6 +27,12 @@ class UrlCrawler(Enum):
     DESCRIBELY = 'https://partners.describely.ai/affiliates/login.php'
     FLOCKSOCIAL = 'https://affiliates.flocksocial.com'
     WITHBLAZE = 'https://affiliates.withblaze.app/'
+    REDITUS = 'https://api.getreditus.com/auth/sign_in'
+    LEADDYNO = 'leaddyno.com'
+    IDEVAFFILIATE1 ='affiliate.hide-my-ip.com'
+    IDEVAFFILIATE2 ='affiliate.simplybook.me'
+    HASOFFERS = 'https://affiliate.vipre.com/'
+    CONTADU = 'https://app.neuronwriter.com/ucp/'
 
     def __str__(self):
         return self.name
@@ -496,6 +502,21 @@ class DataCrawler:
         elif UrlCrawler.WITHBLAZE.value in url or UrlCrawler.FLOCKSOCIAL.value in url:
             crawler = WithblazeAndFlocksocialCrawler(*args)
             return await crawler.crawl()
+        elif UrlCrawler.REDITUS.value == url:
+            crawler = ReditusCrawler(*args)
+            return await crawler.crawl()
+        elif UrlCrawler.LEADDYNO.value in url:
+            crawler = LeaddynoCrawler(*args)
+            return await crawler.crawl()
+        elif UrlCrawler.IDEVAFFILIATE1.value in url or UrlCrawler.IDEVAFFILIATE2.value in url:
+            crawler = DevaffiliateCrawler(*args)
+            return await crawler.crawl()
+        elif UrlCrawler.HASOFFERS.value == url:
+            crawler = HasoffersCrawler(*args)
+            return await crawler.crawl()
+        elif UrlCrawler.CONTADU.value == url:
+            crawler = ContaduCrawler(*args)
+            return await crawler.crawl()
         
     async def crawl(self):
         result = await pl.task.map(self.crawl_data, self.data, workers=100)
@@ -511,12 +532,23 @@ data = [
     # ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
     # ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
     
-    ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
-    ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
-    ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
-    ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
-    ('https://affiliates.withblaze.app/', 'maddietaylor376cv@gmail.com', 'Aceu9YO60m'),
+    # ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
+    # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
+    # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
+    # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
+    # ('https://affiliates.withblaze.app/', 'maddietaylor376cv@gmail.com', 'Aceu9YO60m'),
     # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9'), link này lỗi
+    
+    ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
+    ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
+    ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'),
+    ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
+    ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
+    ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
+    ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+    ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
+    ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
+    ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
 ]
 async def main():
     crawler = DataCrawler(data)
