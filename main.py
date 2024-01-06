@@ -1,7 +1,7 @@
-from operator import contains
 from capmonstercloudclient import CapMonsterClient, ClientOptions
 from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
 import aiohttp
+import asyncio
 import re
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -10,9 +10,171 @@ import pypeln as pl
 from urllib.parse import urljoin
 from enum import Enum
 import json
-import asyncio
 from urllib.parse import quote
-from crawler import *
+
+class Crawler:
+    def __init__(self, url, username, password) -> None:
+        self.url = url
+        self.username = username
+        self.password = password
+        
+class DescribelyAndPostaffiliateproCrawler(Crawler):
+    def __init__(self, url, username, password) -> None:
+        super().__init__(url, username, password)
+
+    async def crawl(self):
+        idx = self.url.index("/affiliates")
+        self.url = self.url[:idx]
+        
+        async def extract_cookie(cookie_string):
+            idx1 = cookie_string.index("=")
+            idx2 = cookie_string.index(";")
+
+            cookie_string =  cookie_string[idx1+1:idx2]
+            return cookie_string
+
+        async with aiohttp.ClientSession() as session:
+            url = f"{self.url}/affiliates/login.php"
+            response0 = await session.get(url, headers={})
+            signup_pap_sid = response0.cookies.get('signup_pap_sid')
+            signup_pap_sid = str(signup_pap_sid)
+            signup_pap_sid = await extract_cookie(signup_pap_sid)
+
+            headers = {}
+            headers['cookie'] = f'gpf_language=en-US; signup_pap_sid={signup_pap_sid}'
+
+            json_data = {
+                "C": "Gpf_Rpc_Server",
+                "M": "run",
+                "requests": [
+                    {"C": "Gpf_Rpc_Server", "M": "syncTime", "offset": "54000000"},
+                    {"C": "Gpf_Templates_TemplateService", "M": "getTemplate", "templateName": "window_move_panel"},
+                    {"C": "Gpf_Templates_TemplateService", "M": "getTemplate", "templateName": "context_menu"},
+                    {"C": "Gpf_Templates_TemplateService", "M": "getTemplate", "templateName": "window_header_refresh"},
+                    {"C": "Gpf_Templates_TemplateService", "M": "getTemplate", "templateName": "item"},
+                    {"C": "Gpf_Templates_TemplateService", "M": "getTemplate", "templateName": "single_content_panel"},
+                    {"C": "Gpf_Templates_TemplateService", "M": "getTemplate", "templateName": "form_field_checkbox"},
+                    {"C": "Gpf_Templates_TemplateService", "M": "getTemplate", "templateName": "login_annotation"}
+                ],
+                "S": signup_pap_sid
+            }
+            form_data = {"D": json.dumps(json_data)}
+            url_post = f"{self.url}/scripts/server.php"
+            response0 = await session.post(url_post, data=form_data, headers=headers)
+            headers = {}
+            headers['cookie'] = f'gpf_language=en-US; signup_pap_sid={signup_pap_sid}'
+
+            json_data = {
+                "C": "Gpf_Rpc_Server", "M": "run",
+                "requests": [
+                    {"C": "Gpf_Auth_Service", "M": "authenticate", 
+                     "fields": [["name", "value"], ["Id", ""],
+                    ["username", self.username], ["password", self.password],
+                    ["twofactor_token", ""], ["rememberMe", "N"],
+                    ["language", "en-US"], ["roleType", "A"]]}
+                ],
+                "S": signup_pap_sid
+            }
+
+            form_data = {"D": json.dumps(json_data)}
+            response0 = await session.post(url_post, data=form_data, headers=headers)
+            # isSuccess = await response0.json()
+
+            affiliates_pap_sid = response0.cookies.get('affiliates_pap_sid')
+            affiliates_pap_sid = str(affiliates_pap_sid)
+            affiliates_pap_sid = await extract_cookie(affiliates_pap_sid)
+
+            headers = {}
+            headers['cookie'] = f'gpf_language=en-US; signup_pap_sid={signup_pap_sid}; affiliates_pap_sid={affiliates_pap_sid}'
+            url = f"{self.url}/affiliates/panel.php"
+            response0 = await session.get(url, headers=headers)
+
+            # Sau đó request theo trình tự này, thay đổi headers sau khi lấy được affiliates_pap_sid
+            json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Gpf_Rpc_Server", "M":"syncTime", "offset":"54000000"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"main_header"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"calendar"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"date_preset_panel"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"custom_date_panel"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"date_range_filter_field"},{"C":"Pap_Affiliates_MainPanelHeader", "M":"load"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"tooltip_popup"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"form_field"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"affiliate_manager"},{"C":"Gpf_Db_Table_FormFields", "M":"getTranslatedFields", "formId":"merchantForm", "status":"M,O,R"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"data_field"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"news_content"},{"C":"Gpf_Templates_TemplateService", "M":"getTemplate", "templateName":"simple_icon_object"},{"C":"Pap_Affiliates_MerchantInfo", "M":"load", "fields":[["name","value"],["Id",""]]},{"C":"Pap_Affiliates_Reports_PeriodStats", "M":"load"},{"C":"Pap_Common_NewsManager", "M":"loadUnread"}], 
+            "S":affiliates_pap_sid}
+            form_data = {"D": json.dumps(json_data)}
+            response0 = await session.post(url_post, headers=headers, data=form_data)
+            # 2
+            json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Pap_Common_NewsManager", "M":"load"},{"C":"Pap_Common_Reports_StatisticsBaseNew", "M":"loadData", "filters":[["datetime","DP","L7D"],["groupBy","=","day"],["dataType1","=","commission"],["dataStatus1","=","A"],["dataPStatus1","=",""],["dataType2","=","commission"],["dataStatus2","=","A"],["dataPStatus2","=","P"],["dataType3","=","commission"],["dataStatus3","=","P"],["dataPStatus3","=",""]]}], 
+                        "S":affiliates_pap_sid}
+            form_data = {"D": json.dumps(json_data)}
+            response0 = await session.post(url_post, headers=headers, data=form_data)
+            # 3
+            json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Gpf_Templates_TemplateService", "M":"getAllMissingTemplates", "templateName":"", "loadedTemplates":",loading_indicator,main,button,loading_template,breadcrumbs,icon_button,main_menu,menu_entry,menu_section,sub_menu_section,system_menu,window,window_move_panel,window_left,context_menu,window_header,window_header_refresh,window_bottom_left,window_empty_content,item,single_content_panel,home,link_button,main_header,calendar,date_preset_panel,custom_date_panel,date_range_filter_field,tooltip_popup,form_field,affiliate_manager,data_field,news_content,simple_icon_object", "templatesCount":50}], 
+            "S":affiliates_pap_sid}
+            form_data = {"D": json.dumps(json_data)}
+            response0 = await session.post(url_post, headers=headers, data=form_data)
+            # Sau đó request theo trình tự đến Report
+            json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Gpf_Db_Table_Filters", "M":"getDefaultFilter", "data":[["name","value"],["filterType","trends_report"]]},{"C":"Gpf_Db_Table_Filters", "M":"get", "filterType":"trends_report"},{"C":"Gpf_DateTime_Range", "M":"loadDateRangeFromPreset", "datePreset":"L30D"},{"C":"Pap_Affiliates_Reports_TrendsReport", "M":"loadDefaultDataTypes"},{"C":"Pap_Affiliates_Reports_TrendsReport", "M":"loadDataTypes"},{"C":"Pap_Common_Campaign_CampaignForAffiliateTransactionsRichListBox", "M":"load", "clicks":"Y", "from":0, "rowsPerPage":20, "maxCachedCount":500, "id":"cachedRequest"},{"C":"Pap_Merchants_Campaign_AffChannelSearchRichListBox", "M":"load", "from":0, "rowsPerPage":20, "maxCachedCount":500, "id":"cachedRequest", "userid":""},{"C":"Pap_Common_Banner_BannerForAffiliateStatsRichListBox", "M":"load", "from":0, "rowsPerPage":20, "maxCachedCount":500, "id":"cachedRequest"},{"C":"Pap_Affiliates_Promo_DestinationUrlRichListBox", "M":"load", "from":0, "rowsPerPage":20, "maxCachedCount":500, "id":"cachedRequest"},{"C":"Pap_Affiliates_Reports_TrendsReport", "M":"loadData", "isInitRequest":"Y", "filterType":"trends_report", "filters":[["datetime","DP","L30D"],["rpc","=","Y"],["groupBy","=","day"],["dataType1","=","saleCount"],["dataType2","=","_item_none_"]]}], 
+                        "S":affiliates_pap_sid}
+            form_data = {"D": json.dumps(json_data)}
+            response0 = await session.post(url_post, headers=headers, data=form_data)
+            # 2
+            json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Pap_Affiliates_Reports_TrendsReportWidget", "M":"load", "isInitRequest":"Y", "filterType":"trends_report", "filters":[["datetime","DP","L30D"]]},{"C":"Pap_Stats_TransactionTypes", "M":"getActionTypes", "filters":[["datetime","DP","L30D"]]}], 
+                        "S":affiliates_pap_sid}
+            form_data = {"D": json.dumps(json_data)}
+            response0 = await session.post(url_post, headers=headers, data=form_data)
+            def clean_html(html_content):
+                cleaned_html = html_content.replace('\\t', '').replace('\\n', '')
+                cleaned_html = cleaned_html.replace('\/', '').replace('\\', '').replace('  ', ' ')
+                return cleaned_html
+            # All time report
+            json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Pap_Affiliates_Reports_TrendsReportWidget", "M":"load", "isInitRequest":"Y", "filterType":"trends_report"},{"C":"Pap_Stats_TransactionTypes", "M":"getActionTypes"}], 
+                        "S":affiliates_pap_sid}
+            form_data = {"D": json.dumps(json_data)}
+            response_html_1 = await session.post(url_post, headers=headers, data=form_data)
+            # Crawl data
+            # print(await response_html_1.text())
+            cleaned_html_1 = clean_html(await response_html_1.text())
+            soup = BeautifulSoup(cleaned_html_1, 'html.parser')
+            # # Lấy thông tin cho từng class 'row'
+            rows = soup.find_all('div', class_='row')
+            data_crawl = {}
+            # Lặp qua từng dòng và lấy thông tin
+            row1 = rows[1].text.replace("\u200e","").strip()
+            # Get index of Clicks , All clicks , CTR , Totals , Commissions
+            clicks_idx = row1.index("Clicks")
+            totals_idx = row1.index("Totals")
+            blank_idx = row1.index(" ")
+            # Hard core with string
+            # Đã lấy được value clicks
+            string_clicks = row1[clicks_idx:blank_idx] # string clicks
+            value_clicks = string_clicks[string_clicks.index("s")+1:]
+            # print(value_clicks)
+            # print(len(value_clicks))
+            data_crawl['Clicks'] = value_clicks
+            # value totals
+            string_totals = row1[totals_idx:] # split string to get data Totals
+            dollar_idx = string_totals.index("$")
+            commissions_idx = string_totals.index("Commissions")
+            # print(string_totals)
+            value_totals = string_totals[dollar_idx:commissions_idx]
+            # print(value_totals)
+            data_crawl['Totals'] = value_totals
+            # print(data_crawl)
+            # All time Sales
+            json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Pap_Affiliates_Reports_TrendsReportActionWidget", "M":"load", "filters":[["action","E","S"]]}], 
+                        "S":affiliates_pap_sid}
+            form_data = {"D": json.dumps(json_data)}
+            response_html_2 = await session.post(url_post, headers=headers, data=form_data)
+            # print(response_html_2.status)
+            # print(response_html_2.text)
+            # Crawl data
+            cleaned_html_2 = clean_html(await response_html_2.text())
+            # print(await response_html_2.text())
+            soup = BeautifulSoup(cleaned_html_2, 'html.parser')
+            rows = soup.find_all('div', class_='row')
+            row0 = rows[0].text.replace("\u200e","").strip()
+            # print(row0)
+            sales_idx = row0.index("Sales")
+            fixed_idx = row0.index("Fixed")
+            dollar_idx = row0.index("$")
+            value_sale_1 = row0[:sales_idx]
+            # print(value_sale_1)
+            value_sale_2 = row0[dollar_idx:fixed_idx].strip()
+            # print(value_sale_2)
+            data_crawl['Sales'] = [value_sale_1, value_sale_2]
+            return data_crawl
 
 class UrlCrawler(Enum):
     Goaffpro = 'https://allpowers.goaffpro.com/login'
@@ -22,18 +184,19 @@ class UrlCrawler(Enum):
     Linkmink = 'https://app.linkmink.com/login'
     CELLXPERT = 'https://affiliates.fiverr.com/login'
     BRAIN_STORM_FORCE = 'https://thelogocompany.net/affiliate-area'
-    AFFILIATLYCOM = 'https://www.affiliatly.com/'
+    REDITUS = 'getreditus.com'
+    CRAMLY_LEADDYNO = 'cramly.leaddyno.com'
+    TRADELLE_LEADDYNO = 'tradelle.leaddyno.com'
+    AFFILIATE_HIDE_MY_IP = 'affiliate.hide-my-ip.com'
+    AFFILIATE_SIMPLYBOOK = 'affiliate.simplybook.me'
+    AFFILIATE_VIPRE = 'affiliate.vipre.com'
+    NEURON_WRITER = 'app.neuronwriter.com'
+    AFFILIATE_WITHBLAZE = 'affiliates.withblaze.app'
+    AFFILIATE_FLOCKSOCIAL = 'affiliates.flocksocial.com'
+    AFFILIATLYCOM = 'affiliatly.com'
     POSTAFFILIATEPRO = 'https://aejuice.postaffiliatepro.com/'
     DESCRIBELY = 'https://partners.describely.ai/affiliates/login.php'
-    FLOCKSOCIAL = 'https://affiliates.flocksocial.com'
-    WITHBLAZE = 'https://affiliates.withblaze.app/'
-    REDITUS = 'https://api.getreditus.com/auth/sign_in'
-    LEADDYNO = 'leaddyno.com'
-    IDEVAFFILIATE1 ='affiliate.hide-my-ip.com'
-    IDEVAFFILIATE2 ='affiliate.simplybook.me'
-    HASOFFERS = 'https://affiliate.vipre.com/'
-    CONTADU = 'https://app.neuronwriter.com/ucp/'
-
+    
     def __str__(self):
         return self.name
 
@@ -51,7 +214,32 @@ class UrlCrawler(Enum):
             return 'https://fiverraffiliates.com/loginaffiliate/'
         if self is UrlCrawler.BRAIN_STORM_FORCE:
             return 'https://thelogocompany.net/affiliate-area/'
+        if self is UrlCrawler.REDITUS:
+            return 'https://api.getreditus.com/auth/sign_in'
+        if self is UrlCrawler.CRAMLY_LEADDYNO:
+            return 'https://cramly.leaddyno.com/sso'
+        if self is UrlCrawler.TRADELLE_LEADDYNO:
+            return 'https://tradelle.leaddyno.com/sso'
+        if self is UrlCrawler.AFFILIATE_HIDE_MY_IP:
+            return 'https://affiliate.hide-my-ip.com/login.php'
+        if self is UrlCrawler.AFFILIATE_SIMPLYBOOK:
+            return 'https://affiliate.simplybook.me/login.php'
+        if self is UrlCrawler.AFFILIATE_VIPRE:
+            return 'https://affiliate.vipre.com/'
+        if self is UrlCrawler.NEURON_WRITER:
+            return 'https://app.neuronwriter.com/ucp/login'
+        if self is UrlCrawler.AFFILIATE_WITHBLAZE:
+            return 'https://affiliates.withblaze.app/login'
+        if self is UrlCrawler.AFFILIATE_FLOCKSOCIAL:
+            return'https://affiliates.flocksocial.com/login'
 
+    @property
+    def loginCheckAPI(self):
+        if self is UrlCrawler.AFFILIATE_WITHBLAZE:
+            return 'https://affiliates.withblaze.app/login_check'
+        if self is UrlCrawler.AFFILIATE_FLOCKSOCIAL:
+            return'https://affiliates.flocksocial.com/login_check'
+        
     @property
     def dataAPI(self):
         if self in (UrlCrawler.Goaffpro, UrlCrawler.Meross_Goaffpro):
@@ -66,6 +254,14 @@ class UrlCrawler(Enum):
             return 'https://affiliateapi.cellxpert.com/?command=DashboardOverview'
         if self is UrlCrawler.BRAIN_STORM_FORCE:
             return 'https://thelogocompany.net/affiliate-area/'
+        if self is UrlCrawler.REDITUS:
+            return 'https://api.getreditus.com/api/affiliate/dashboard/cards'
+        if self is UrlCrawler.CRAMLY_LEADDYNO:
+            return 'https://cramly.leaddyno.com/affiliate'
+        if self is UrlCrawler.TRADELLE_LEADDYNO:
+            return 'https://tradelle.leaddyno.com/affiliate'
+        if self is UrlCrawler.NEURON_WRITER:
+            return 'https://app.neuronwriter.com/ucp/affiliate'
         
     @property
     def tokenAPI(self):
@@ -73,25 +269,17 @@ class UrlCrawler(Enum):
             return 'https://app.linkmink.com/api/v0.1.0' 
         if self is UrlCrawler.CELLXPERT:
             return 'https://fiverraffiliates.com/affiliatev2/' 
-
+        if self is UrlCrawler.AFFILIATE_VIPRE:
+            return 'https://affiliate.vipre.com/publisher/'
+        if self is UrlCrawler.AFFILIATE_WITHBLAZE:
+            return 'https://affiliates.withblaze.app/_form_params/'
+        if self is UrlCrawler.AFFILIATE_FLOCKSOCIAL:
+            return'https://affiliates.flocksocial.com/_form_params/'
+        
 class DataCrawler:
     def __init__(self, data):
         self.data = data
-        self.default_headers = {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7,fr-FR;q=0.6,fr;q=0.5',
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Sec-Ch-Ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Upgrade-Insecure-Requests': '1',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
-        }
+
     # step 1: solve captcha
     async def solve_captcha(self, WEBSITE_URL, WEBSITE_KEY):
         API_KEY = "b238f538e55b7deb0da93267f61d8763"
@@ -142,23 +330,6 @@ class DataCrawler:
             return match.group(1)
         else:
             return None
-        
-    async def crawl_data_affiliatly(self, html_content):
-        soup = BeautifulSoup(html_content, 'html.parser')
-        unpaid_div = soup.find('div', class_='pull-left half_row')
-        unpaid_value = unpaid_div.strong.text
-        table = soup.find('table', class_='stats_n_orders')
-        total_row = soup.find('td', string='Total:').parent
-        visitors_total = total_row.find_all('td')[1].text
-        orders_total = total_row.find_all('td')[2].text
-        earnings_total = total_row.find_all('td')[4].text
-        data_crawl = {
-            'Unpaid Earnings': unpaid_value,
-            'Total Visitors': visitors_total,
-            'Total Orders': orders_total,
-            'Total Your Earnings': earnings_total,
-        }
-        return data_crawl
 
     async def getAuthFromResponse(self, url, response):
         if url in (UrlCrawler.Goaffpro.loginAPI, UrlCrawler.Meross_Goaffpro.loginAPI):
@@ -244,11 +415,84 @@ class DataCrawler:
                 print(f"Error BRAIN_STORM_FORCE {response.status}: {await response.text()}")
                 response.raise_for_status()
             return None
-
-    async def LoginAndGetAuthAsync(self, url, payload, headers):
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, data=payload, headers=headers, allow_redirects=False) as response:
-                return await self.getAuthFromResponse(url, response)
+        elif url == UrlCrawler.REDITUS.loginAPI:
+            if response.status == 200:
+                return response.headers['Authorization']
+            else:
+                print("REDITUS: Không tìm thấy cookies!")
+        elif UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url:
+            return response.headers['Set-Cookie']
+        elif url == UrlCrawler.AFFILIATE_VIPRE.tokenAPI:
+            content = await response.read()
+            pageSource = content.decode('utf-8')
+            soup = BeautifulSoup(pageSource, "html.parser")
+            try:
+                script_tag = soup.find(
+                    'script', text=lambda t: 'session_token' in t)
+                if script_tag:
+                    # Extract the session_token value from the script tag
+                    session_token = script_tag.text.split(
+                        '"session_token":"')[1].split('",')[0]
+                    print("Session Token:", session_token)
+                else:
+                    print("Session Token not found.")
+            except:
+                print("Hasoffers: Error extracting Session Token")
+                return
+        elif url == UrlCrawler.NEURON_WRITER.loginAPI:
+            responseCookies = response.cookies.get('contai_session_id')
+            sessionId = responseCookies.key + "=" + responseCookies.value
+            return sessionId
+        
+    async def LoginAndGetAuthAsync(self, url, payload, headers, **kwargs):
+        if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url:
+            async def get_csrf_token_from_html(html_content):
+                soup = BeautifulSoup(html_content, 'html.parser')
+                script_tag = soup.find('script', string=lambda s: 'window.configObj' in s)
+                if script_tag:
+                    script_content = script_tag.string
+                    csrf_token_start = script_content.find('csrf_token:') + len('csrf_token:')
+                    csrf_token_end = script_content.find(',', csrf_token_start)
+                    csrf_token = script_content[csrf_token_start:csrf_token_end].strip().strip('\'"')
+                    return csrf_token
+                else:
+                    print("Script not found or does not contain the necessary information.")
+            
+            loginAPI = UrlCrawler.AFFILIATE_FLOCKSOCIAL.loginAPI if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url else UrlCrawler.AFFILIATE_WITHBLAZE.loginAPI
+            loginCheckAPI = UrlCrawler.AFFILIATE_FLOCKSOCIAL.loginCheckAPI if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url else UrlCrawler.AFFILIATE_WITHBLAZE.loginCheckAPI
+            tokenAPI = UrlCrawler.AFFILIATE_FLOCKSOCIAL.tokenAPI if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url else UrlCrawler.AFFILIATE_WITHBLAZE.tokenAPI
+            async with aiohttp.ClientSession() as session:
+                async with session.get(loginAPI, headers={}) as res:
+                    if res.status == 200:
+                        ssid = res.cookies.get('TAPSESSID')
+                        headers = {
+                            'Cookie': f'TAPSESSID={ssid}'
+                        }
+                        async with session.get(tokenAPI, headers={}) as res_form:
+                            if res.status == 200:
+                                data_res = await res_form.json()
+                                token = data_res["token"]
+                                isCaptcha = data_res["needs_captcha"]
+                                payload = {
+                                    "_csrf_token": token,
+                                    "_username": kwargs.get('email'),
+                                    "_password": kwargs.get('password'),
+                                }
+                                if(isCaptcha):
+                                    websiteKey ="6LdHHAcUAAAAACOdiyUe67H3Ym6s1kKeetuiuFjd"
+                                    payload["g-recaptcha-response"] = self.solve_captcha(url, websiteKey)
+                                async with session.post(loginCheckAPI, headers=headers, data=payload) as res_login:
+                                    new_ssid = ''
+                                    new_csrf_token = ''
+                                    isLoginSuccess = await res_login.text()
+                                    if "Dashboard | " in isLoginSuccess:
+                                        new_csrf_token = await get_csrf_token_from_html(await res_login.text())
+                                        new_ssid = session.cookie_jar.filter_cookies(url).get("TAPSESSID").value
+                                        return new_ssid, new_csrf_token                
+        else:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=payload, headers=headers, allow_redirects=False) as response:
+                    return await self.getAuthFromResponse(url, response)
     
     # step 3: fetch data
     def get_first_and_last_day(self, year, month):
@@ -390,7 +634,178 @@ class DataCrawler:
                     else:
                         print(f"Error BRAIN_STORM_FORCE {response.status}: {await response.text()}")
                         return None
-        
+        elif UrlCrawler.REDITUS.value in url:
+            headers = {
+                "Authorization": f"{kwargs.get('token', '')}",
+                "Content-Type": "application/json"
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.get(UrlCrawler.REDITUS.dataAPI, headers=headers) as response:
+                    return await response.json()
+        elif UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url:
+            getInfoHeaders = {
+                ":method": "GET",
+                ":authority": "tradelle.leaddyno.com",
+                ":scheme": "https",
+                ":path": "/affiliate",
+                # "sec-ch-ua": "Not_A Brand";v="8", "Chromium";v="120", "Microsoft Edge";v="120",
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": "Windows",
+                "upgrade-insecure-requests": "1",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "sec-fetch-site": "same-origin",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-user": "?1",
+                "sec-fetch-dest": "document",
+                "referer": "https://tradelle.leaddyno.com/",
+                "accept-encoding": "gzip, deflate, br",
+                "accept-language": "en-US,en;q=0.9",
+                "cookie": kwargs.get('token', ''),
+                "if-none-match": "W/'2fc70b5ebd7a45aad667e0be52dbb996'",
+            }
+            if UrlCrawler.CRAMLY_LEADDYNO.value in url:
+                dataRequestUrl = UrlCrawler.CRAMLY_LEADDYNO.dataAPI
+            if UrlCrawler.TRADELLE_LEADDYNO.value in url:
+                dataRequestUrl = UrlCrawler.TRADELLE_LEADDYNO.dataAPI
+            async with aiohttp.ClientSession() as session:
+                async with session.get(dataRequestUrl, headers={**getInfoHeaders}, allow_redirects=False) as response:
+                    content = await response.read()  # Read the response content as bytes
+                    # Decode the bytes to a string
+                    pageSource = content.decode('utf-8')
+                    soup = BeautifulSoup(pageSource, "html.parser")
+                    results = soup.select(".aff-progress-digit>b")
+                    resultsContent = [int(element.text) for element in results]
+                    result_dict = {}
+                    if (len(resultsContent) > 0):
+                        result_dict = {
+                            'Friends have visited us': resultsContent[0], 'Friends have signed up with us': resultsContent[1], 'Purchases made by friends': resultsContent[2]}
+                    return result_dict
+        elif UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url:
+            loginAPI = UrlCrawler.AFFILIATE_HIDE_MY_IP.loginAPI if UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url else UrlCrawler.AFFILIATE_SIMPLYBOOK.loginAPI
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            payload = f"csrf_token=&userid={kwargs.get('email')}&password={kwargs.get('password')}&token_affiliate_login=2eed4d63883d9ed92399"
+            async with aiohttp.ClientSession() as session:
+                async with session.post(loginAPI, data=payload, headers=headers) as response:
+                    content = await response.read()  # Read the response content as bytes
+                    # Decode the bytes to a string
+                    pageSource = content.decode('utf-8')
+                    soup = BeautifulSoup(pageSource, "html.parser")
+                    results = soup.select(".heading")
+                    resultsContent = [element.text.strip() for element in results]
+                    lastElement = resultsContent[len(resultsContent) - 1]
+                    twoLastElement = lastElement.replace(" ", "").split('\n\n')
+                    resultsContent.pop()
+                    resultsContent = resultsContent + twoLastElement
+                    if (len(resultsContent) > 0):
+                        result_dict = {
+                            'Total Transactions': resultsContent[0], 'Current Earnings': resultsContent[1], 'Total Earned To Date': resultsContent[2], 'Unique Visitors': resultsContent[3], 'Sales Ratio': resultsContent[4]}
+                    return result_dict
+        elif UrlCrawler.AFFILIATE_VIPRE.value in url:
+            dataPayload = {
+                "fields[]": ["Stat.impressions", "Stat.clicks", "Stat.conversions", "Stat.payout"],
+                "Method": "getStats",
+                "NetworkId": "vipre",
+                "SessionToken": kwargs.get('token'),
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.post('https://api-p03.hasoffers.com/v3/Affiliate_Report.json', data=dataPayload) as response:
+                    content = await response.text()
+                    response_json = json.loads(content)
+                    if 'response' in response_json:
+                        # print(response_json['response']['data']['data'][0]['Stat'])
+                        return response_json['response']['data']['data']
+                    else:
+                        print("Has offer: No 'response' attribute in the JSON content.")
+        elif url == UrlCrawler.NEURON_WRITER.dataAPI:
+            headers = {
+                "Cookie": kwargs.get('sessionId')
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.get(UrlCrawler.NEURON_WRITER.dataAPI, headers=headers) as response:
+                    content = await response.read()
+                    pageSource = content.decode('utf-8')
+                    soup = BeautifulSoup(pageSource, "html.parser")
+                    data = []
+                    for row in soup.select('table[data-export_fname="aff_daily_stats"] tbody tr'):
+                        date = row.select('td')[0].text.strip()
+                        clicks = row.select('td')[1].text.strip()
+                        unique_ips = row.select('td')[2].text.strip()
+                        entry = {'date': date, 'clicks': clicks,
+                                'unique IPs': unique_ips}
+                        data.append(entry)
+                return data
+        elif UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url:
+            ssid = kwargs.get('ssid')
+            csrf_token = kwargs.get('csrf_token')
+            current_date = datetime.now()
+            date_30_days_ago = current_date - timedelta(days=30)
+            date_format = "%Y-%m-%d"
+            # Convert to formatted strings
+            current_date_str = current_date.strftime(date_format)
+            date_30_days_ago_str = date_30_days_ago.strftime(date_format)
+            url = f"{url}/api-stateful/pi/reports-depr/date/?date_from={date_30_days_ago_str}&date_to={current_date_str}&sort_by=title&sort_direction=DESC&page=1"
+            payload=None
+            headers = {}
+            headers['Cookie'] = f'TAPSESSID={ssid}'
+            headers['X-Csrf-Token'] = csrf_token
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, headers=headers, data=payload) as response0:
+                    if response0.status == 200:
+                        dict_data = await response0.json()
+                        return dict_data['results']
+                        # for item in dict_data["results"]:
+                        #     print(item)
+                    else:
+                        print("Error fetch data", response0.text)
+        elif UrlCrawler.AFFILIATLYCOM.value in url:
+            async with aiohttp.ClientSession() as session:
+                _url = f"{url}/af-1040475/affiliate.panel"
+                async with session.get(_url, headers={}) as response:
+                    ssid = response.cookies.get('PHPSESSID')
+                    soup = BeautifulSoup(await response.text(), 'html.parser')
+                    login_hsf_input = soup.find('input', {'name': 'login_hsf'})
+                    login_hsf_value = login_hsf_input['value'] if login_hsf_input else None
+                    login_hsf_time_input = soup.find('input', {'name': 'login_hsf_time'})
+                    login_hsf_time_value = login_hsf_time_input['value'] if login_hsf_time_input else None
+
+                _url = f"{url}/af-1040475/affiliate.panel"
+                payload = {
+                    'email': kwargs.get('email'),
+                    'password': kwargs.get('password'),
+                    'captcha': '',
+                    'login_hsf': login_hsf_value,
+                    'login_hsf_time': login_hsf_time_value,
+                    'login': ''
+                }
+
+                async with session.post(_url, headers={}, data=payload) as response:
+                    _affiliatly_logged = session.cookie_jar.filter_cookies(_url).get("_affiliatly_logged").value
+                    if _affiliatly_logged is not None:
+                        headers = {}
+                        headers['Cookie'] = f'PHPSESSID={ssid}; _affiliatly_logged={_affiliatly_logged}'
+                        _url = f"{url}/af-1040475/affiliate.panel"
+                        async with session.get(_url, headers=headers) as response:
+                            html_content = await response.text()
+                            soup = BeautifulSoup(html_content, 'html.parser')
+                            unpaid_div = soup.find('div', class_='pull-left half_row')
+                            unpaid_value = unpaid_div.strong.text
+                            # table = soup.find('table', class_='stats_n_orders')
+                            total_row = soup.find('td', string='Total:').parent
+                            visitors_total = total_row.find_all('td')[1].text
+                            orders_total = total_row.find_all('td')[2].text
+                            earnings_total = total_row.find_all('td')[4].text
+                            data_crawl = {
+                                'Unpaid Earnings': unpaid_value,
+                                'Total Visitors': visitors_total,
+                                'Total Orders': orders_total,
+                                'Total Your Earnings': earnings_total,
+                            }
+                            return data_crawl
+                    else:
+                        return f"Error with login website , {self.url}"
     # Crawl data func
     async def crawl_data(self, args):
         if len(args)<=0:
@@ -493,34 +908,77 @@ class DataCrawler:
             cookie = await self.LoginAndGetAuthAsync(UrlCrawler.BRAIN_STORM_FORCE.loginAPI, payload, headers)
             if cookie:
                 return await self.fetch_data(url, cookie=cookie)
+        elif UrlCrawler.REDITUS.value in url:
+            payload = {
+                "email": email,
+                "password": password
+            }
+            headers = {}
+            token = await self.LoginAndGetAuthAsync(UrlCrawler.REDITUS.loginAPI, payload, headers)
+            if token:
+                return await self.fetch_data(url, token=token)
+        elif UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url:
+            payload = {
+                "ic-request": "true",
+                "password": password,
+                "email": email,
+                "ic-id": 1,
+                "ic-current-url": "/",
+                "_method": "PUT"
+            }
+            headers = {}
+            loginAPI = UrlCrawler.CRAMLY_LEADDYNO.loginAPI if UrlCrawler.CRAMLY_LEADDYNO.value in url else UrlCrawler.TRADELLE_LEADDYNO.loginAPI
+            token = await self.LoginAndGetAuthAsync(loginAPI, payload, headers)
+            if token:
+                return await self.fetch_data(url, token=token)
+        elif UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url:
+            return await self.fetch_data(url, email=email, password=password)
+        elif UrlCrawler.AFFILIATE_VIPRE.value in url:
+            sessionIdPayload = {
+                'data[User][email]': email,
+                'data[User][password]': password,
+            }
+            sessionIdHeaders = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36",
+                "accept":	"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "accept-encoding":	"gzip, deflate, br",
+                "connection": "keep-alive",
+                "cookie":	"EUcomp=1",
+                "content-type":	"application/x-www-form-urlencoded",
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.post(UrlCrawler.AFFILIATE_VIPRE.loginAPI, data=sessionIdPayload, headers=sessionIdHeaders, allow_redirects=False) as response:
+                    responseCookies = response.cookies.get('PHPSESSID')
+                    sessionId = responseCookies.key + "=" + responseCookies.value
+            tokenHeaders = {
+                "Cookie": sessionId
+            }
+            token = await self.LoginAndGetAuthAsync(UrlCrawler.AFFILIATE_VIPRE.tokenAPI, {}, tokenHeaders)
+            print(":::", token)
+            if token:
+                return await self.fetch_data(url, token=token)
+        elif UrlCrawler.NEURON_WRITER.value in url:
+            payload = {
+                "email": email,
+                "password": password,
+                "redirect_url": "/"
+            }
+            sessionId = await self.LoginAndGetAuthAsync(UrlCrawler.NEURON_WRITER.loginAPI, payload, {})
+            return await self.fetch_data(UrlCrawler.NEURON_WRITER.dataAPI, sessionId=sessionId)
+        elif UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url:
+            ssid, csrf_token = await self.LoginAndGetAuthAsync(url, None, None, email=email, password=password)
+            if(ssid):
+                return await self.fetch_data(url, ssid=ssid, csrf_token=csrf_token)
         elif UrlCrawler.AFFILIATLYCOM.value in url:
-            crawler = AffiliatlyComCrawler(*args)
-            return await crawler.crawl()
+            return await self.fetch_data(url, email=email, password=password)
         elif UrlCrawler.DESCRIBELY.value in url or UrlCrawler.POSTAFFILIATEPRO.value in url:
             crawler = DescribelyAndPostaffiliateproCrawler(*args)
             return await crawler.crawl()
-        elif UrlCrawler.WITHBLAZE.value in url or UrlCrawler.FLOCKSOCIAL.value in url:
-            crawler = WithblazeAndFlocksocialCrawler(*args)
-            return await crawler.crawl()
-        elif UrlCrawler.REDITUS.value == url:
-            crawler = ReditusCrawler(*args)
-            return await crawler.crawl()
-        elif UrlCrawler.LEADDYNO.value in url:
-            crawler = LeaddynoCrawler(*args)
-            return await crawler.crawl()
-        elif UrlCrawler.IDEVAFFILIATE1.value in url or UrlCrawler.IDEVAFFILIATE2.value in url:
-            crawler = DevaffiliateCrawler(*args)
-            return await crawler.crawl()
-        elif UrlCrawler.HASOFFERS.value == url:
-            crawler = HasoffersCrawler(*args)
-            return await crawler.crawl()
-        elif UrlCrawler.CONTADU.value == url:
-            crawler = ContaduCrawler(*args)
-            return await crawler.crawl()
-        
+
     async def crawl(self):
         result = await pl.task.map(self.crawl_data, self.data, workers=100)
         print(json.dumps(result, indent=4))
+
 
 data = [
     # ("https://allpowers.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
@@ -532,24 +990,25 @@ data = [
     # ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
     # ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
     
+    # ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
+    # ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
+    # ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'),
+    # ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
+    # ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
+    # ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
+    # ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+    # ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
+    # ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
+    # ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
+    
     # ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
     # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
     # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
     # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
-    # ('https://affiliates.withblaze.app/', 'maddietaylor376cv@gmail.com', 'Aceu9YO60m'),
+    # ('https://affiliates.withblaze.app', 'maddietaylor376cv@gmail.com', 'Aceu9YO60m'),
     # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9'), link này lỗi
-    
-    ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
-    ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
-    ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'),
-    ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
-    ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
-    ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
-    ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
-    ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
-    ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
-    ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
 ]
+
 async def main():
     crawler = DataCrawler(data)
     await crawler.crawl()
