@@ -124,7 +124,6 @@ class DescribelyAndPostaffiliateproCrawler(Crawler):
             form_data = {"D": json.dumps(json_data)}
             response_html_1 = await session.post(url_post, headers=headers, data=form_data)
             # Crawl data
-            # print(await response_html_1.text())
             cleaned_html_1 = clean_html(await response_html_1.text())
             soup = BeautifulSoup(cleaned_html_1, 'html.parser')
             # # Lấy thông tin cho từng class 'row'
@@ -140,39 +139,28 @@ class DescribelyAndPostaffiliateproCrawler(Crawler):
             # Đã lấy được value clicks
             string_clicks = row1[clicks_idx:blank_idx] # string clicks
             value_clicks = string_clicks[string_clicks.index("s")+1:]
-            # print(value_clicks)
-            # print(len(value_clicks))
             data_crawl['Clicks'] = value_clicks
             # value totals
             string_totals = row1[totals_idx:] # split string to get data Totals
             dollar_idx = string_totals.index("$")
             commissions_idx = string_totals.index("Commissions")
-            # print(string_totals)
             value_totals = string_totals[dollar_idx:commissions_idx]
-            # print(value_totals)
             data_crawl['Totals'] = value_totals
-            # print(data_crawl)
             # All time Sales
             json_data = {"C":"Gpf_Rpc_Server", "M":"run", "requests":[{"C":"Pap_Affiliates_Reports_TrendsReportActionWidget", "M":"load", "filters":[["action","E","S"]]}], 
                         "S":affiliates_pap_sid}
             form_data = {"D": json.dumps(json_data)}
             response_html_2 = await session.post(url_post, headers=headers, data=form_data)
-            # print(response_html_2.status)
-            # print(response_html_2.text)
             # Crawl data
             cleaned_html_2 = clean_html(await response_html_2.text())
-            # print(await response_html_2.text())
             soup = BeautifulSoup(cleaned_html_2, 'html.parser')
             rows = soup.find_all('div', class_='row')
             row0 = rows[0].text.replace("\u200e","").strip()
-            # print(row0)
             sales_idx = row0.index("Sales")
             fixed_idx = row0.index("Fixed")
             dollar_idx = row0.index("$")
             value_sale_1 = row0[:sales_idx]
-            # print(value_sale_1)
             value_sale_2 = row0[dollar_idx:fixed_idx].strip()
-            # print(value_sale_2)
             data_crawl['Sales'] = [value_sale_1, value_sale_2]
             return data_crawl
 
@@ -462,6 +450,7 @@ class DataCrawler:
             loginCheckAPI = UrlCrawler.AFFILIATE_FLOCKSOCIAL.loginCheckAPI if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url else UrlCrawler.AFFILIATE_WITHBLAZE.loginCheckAPI
             tokenAPI = UrlCrawler.AFFILIATE_FLOCKSOCIAL.tokenAPI if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url else UrlCrawler.AFFILIATE_WITHBLAZE.tokenAPI
             async with aiohttp.ClientSession() as session:
+                r_ssid, r_csrf_token = None, None
                 async with session.get(loginAPI, headers={}) as res:
                     if res.status == 200:
                         ssid = res.cookies.get('TAPSESSID')
@@ -482,13 +471,11 @@ class DataCrawler:
                                     websiteKey ="6LdHHAcUAAAAACOdiyUe67H3Ym6s1kKeetuiuFjd"
                                     payload["g-recaptcha-response"] = self.solve_captcha(url, websiteKey)
                                 async with session.post(loginCheckAPI, headers=headers, data=payload) as res_login:
-                                    new_ssid = ''
-                                    new_csrf_token = ''
                                     isLoginSuccess = await res_login.text()
                                     if "Dashboard | " in isLoginSuccess:
-                                        new_csrf_token = await get_csrf_token_from_html(await res_login.text())
-                                        new_ssid = session.cookie_jar.filter_cookies(url).get("TAPSESSID").value
-                                        return new_ssid, new_csrf_token                
+                                        r_csrf_token = await get_csrf_token_from_html(await res_login.text())
+                                        r_ssid = session.cookie_jar.filter_cookies(url).get("TAPSESSID").value
+                    return r_ssid, r_csrf_token               
         else:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, data=payload, headers=headers, allow_redirects=False) as response:
@@ -954,7 +941,6 @@ class DataCrawler:
                 "Cookie": sessionId
             }
             token = await self.LoginAndGetAuthAsync(UrlCrawler.AFFILIATE_VIPRE.tokenAPI, {}, tokenHeaders)
-            print(":::", token)
             if token:
                 return await self.fetch_data(url, token=token)
         elif UrlCrawler.NEURON_WRITER.value in url:
@@ -969,6 +955,8 @@ class DataCrawler:
             ssid, csrf_token = await self.LoginAndGetAuthAsync(url, None, None, email=email, password=password)
             if(ssid):
                 return await self.fetch_data(url, ssid=ssid, csrf_token=csrf_token)
+            else:
+                print("Lấy token không thành công: {}".format(url))
         elif UrlCrawler.AFFILIATLYCOM.value in url:
             return await self.fetch_data(url, email=email, password=password)
         elif UrlCrawler.DESCRIBELY.value in url or UrlCrawler.POSTAFFILIATEPRO.value in url:
@@ -1005,7 +993,7 @@ data = [
     # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
     # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
     # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
-    # ('https://affiliates.withblaze.app', 'maddietaylor376cv@gmail.com', 'Aceu9YO60m'),
+    ('https://affiliates.withblaze.app', 'maddietaylor376cv@gmail.com', 'Aceu9YO60m'),
     # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9'), link này lỗi
 ]
 
