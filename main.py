@@ -698,10 +698,7 @@ class DataCrawler:
                 return response.headers["Authorization"]
             else:
                 print("REDITUS: Không tìm thấy cookies!")
-        elif (
-            UrlCrawler.CRAMLY_LEADDYNO.value in url
-            or UrlCrawler.TRADELLE_LEADDYNO.value in url
-        ):
+        elif (UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url):
             return response.headers["Set-Cookie"]
         elif url == UrlCrawler.AFFILIATE_VIPRE.tokenAPI:
             content = await response.read()
@@ -726,11 +723,7 @@ class DataCrawler:
             return sessionId
 
     async def LoginAndGetAuthAsync(self, url, payload, headers, **kwargs):
-        if (
-            UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url
-            or UrlCrawler.AFFILIATE_WITHBLAZE.value in url
-        ):
-
+        if (UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url):
             async def get_csrf_token_from_html(html_content):
                 soup = BeautifulSoup(html_content, "html.parser")
                 script_tag = soup.find(
@@ -1019,10 +1012,7 @@ class DataCrawler:
                     str(UrlCrawler.REDITUS.dataAPI), headers=headers
                 ) as response:
                     return await response.json()
-        elif (
-            UrlCrawler.CRAMLY_LEADDYNO.value in url
-            or UrlCrawler.TRADELLE_LEADDYNO.value in url
-        ):
+        elif (UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url):
             getInfoHeaders = {
                 ":method": "GET",
                 ":authority": "tradelle.leaddyno.com",
@@ -1071,10 +1061,7 @@ class DataCrawler:
                             "Purchases made by friends": resultsContent[2],
                         }
                     return result_dict
-        elif (
-            UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url
-            or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url
-        ):
+        elif (UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url):
             loginAPI = (
                 UrlCrawler.AFFILIATE_HIDE_MY_IP.loginAPI
                 if UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url
@@ -1154,10 +1141,7 @@ class DataCrawler:
                         }
                         data.append(entry)
                 return data
-        elif (
-            UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url
-            or UrlCrawler.AFFILIATE_WITHBLAZE.value in url
-        ):
+        elif (UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url):
             ssid = kwargs.get("ssid")
             csrf_token = kwargs.get("csrf_token")
             current_date = datetime.now()
@@ -1366,10 +1350,7 @@ class DataCrawler:
             )
             if token:
                 return await self.fetch_data(url, token=token)
-        elif (
-            UrlCrawler.CRAMLY_LEADDYNO.value in url
-            or UrlCrawler.TRADELLE_LEADDYNO.value in url
-        ):
+        elif (UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url):
             payload = {
                 "ic-request": "true",
                 "password": password,
@@ -1387,10 +1368,7 @@ class DataCrawler:
             token = await self.LoginAndGetAuthAsync(loginAPI, payload, headers)
             if token:
                 return await self.fetch_data(url, token=token)
-        elif (
-            UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url
-            or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url
-        ):
+        elif (UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url):
             return await self.fetch_data(url, email=email, password=password)
         elif UrlCrawler.AFFILIATE_VIPRE.value in url:
             sessionIdPayload = {
@@ -1432,10 +1410,7 @@ class DataCrawler:
             return await self.fetch_data(
                 UrlCrawler.NEURON_WRITER.dataAPI, sessionId=sessionId
             )
-        elif (
-            UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url
-            or UrlCrawler.AFFILIATE_WITHBLAZE.value in url
-        ):
+        elif (UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url):
             ssid, csrf_token = await self.LoginAndGetAuthAsync(
                 url, None, None, email=email, password=password
             )
@@ -1445,10 +1420,7 @@ class DataCrawler:
                 print("Lấy token không thành công: {}".format(url))
         elif UrlCrawler.AFFILIATLYCOM.value in url:
             return await self.fetch_data(url, email=email, password=password)
-        elif (
-            UrlCrawler.DESCRIBELY.value in url
-            or UrlCrawler.POSTAFFILIATEPRO.value in url
-        ):
+        elif (UrlCrawler.DESCRIBELY.value in url or UrlCrawler.POSTAFFILIATEPRO.value in url):
             crawler = DescribelyAndPostaffiliateproCrawler(*args)
             return await crawler.crawl()
 
@@ -1458,30 +1430,30 @@ class DataCrawler:
 
 
 data = [
-    # ("https://allpowers.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    # ("https://meross-affiliate.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    # ("https://www.shoutout.global/login?id=22wbe", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    # ("https://www.shoutout.global/login?id=obbi7", "teamasmads@gmail.com", "E9vQRQmPG!a.7m6"),
-    # ("https://af.uppromote.com/solar-power-store-canada/login", "teamasmads@gmail.com", "2N*G5k$7ux5j2!F"),
-    # ('https://app.linkmink.com/login', 'evenelson380df@gmail.com', 'jfLo3HlVelSxkKQ'),
-    # ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
-    # ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
-    # ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
-    # ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
-    # ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'),
-    # ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
-    # ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
-    # ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
-    # ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
-    # ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
-    # ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
-    # ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
-    # ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
-    # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
-    # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
-    # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
+    ("https://allpowers.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    ("https://meross-affiliate.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    ("https://www.shoutout.global/login?id=22wbe", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    ("https://www.shoutout.global/login?id=obbi7", "teamasmads@gmail.com", "E9vQRQmPG!a.7m6"),
+    ("https://af.uppromote.com/solar-power-store-canada/login", "teamasmads@gmail.com", "2N*G5k$7ux5j2!F"),
+    ('https://app.linkmink.com/login', 'evenelson380df@gmail.com', 'jfLo3HlVelSxkKQ'),
+    ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
+    ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
+    ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
+    ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
+    ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'),
+    ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
+    ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
+    ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
+    ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+    ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
+    ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
+    ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
+    ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
+    ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
+    ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
+    ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
     ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
-    # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9'), link này lỗi
+    # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9')
 ]
 
 
