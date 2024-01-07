@@ -702,16 +702,11 @@ class DataCrawler:
             return response.headers["Set-Cookie"]
         elif url == UrlCrawler.AFFILIATE_VIPRE.tokenAPI:
             content = await response.read()
-            pageSource = content.decode("utf-8")
-            soup = BeautifulSoup(pageSource, "html.parser")
+            html_content = content.decode("utf-8")
             try:
-                script_tag = soup.find("script", text=lambda t: "session_token" in t)
-                if script_tag:
-                    # Extract the session_token value from the script tag
-                    session_token = script_tag.text.split('"session_token":"')[1].split(
-                        '",'
-                    )[0]
-                    print("Session Token:", session_token)
+                session_token = self.extract_info_from_html(r'"session_token":"(.*?)"', html_content)
+                if session_token:
+                    return session_token
                 else:
                     print("Session Token not found.")
             except:
@@ -1111,11 +1106,9 @@ class DataCrawler:
                     "https://api-p03.hasoffers.com/v3/Affiliate_Report.json",
                     data=dataPayload,
                 ) as response:
-                    content = await response.text()
-                    response_json = json.loads(content)
-                    if "response" in response_json:
-                        # print(response_json['response']['data']['data'][0]['Stat'])
-                        return response_json["response"]["data"]["data"]
+                    content = await response.json()
+                    if content:
+                        return content["response"]["data"]["data"]
                     else:
                         print("Has offer: No 'response' attribute in the JSON content.")
         elif url == UrlCrawler.NEURON_WRITER.dataAPI:
@@ -1410,7 +1403,9 @@ class DataCrawler:
                 UrlCrawler.AFFILIATE_VIPRE.tokenAPI, {}, tokenHeaders
             )
             if token:
-                return await self.fetch_data(url, token=token)
+                return {
+                    "AFFILIATE_VIPRE": await self.fetch_data(url, token=token)
+				}
         elif UrlCrawler.NEURON_WRITER.value in url:
             payload = {"email": email, "password": password, "redirect_url": "/"}
             sessionId = await self.LoginAndGetAuthAsync(
@@ -1446,14 +1441,14 @@ data = [
     # ("https://af.uppromote.com/solar-power-store-canada/login", "teamasmads@gmail.com", "2N*G5k$7ux5j2!F"),
     # ('https://app.linkmink.com/login', 'evenelson380df@gmail.com', 'jfLo3HlVelSxkKQ'),
     # ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
-    ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
+    # ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
     # ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
     # ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
-    # ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'),
+    # ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'), #This affiliate program has been deactivated by the owner
     # ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
     # ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
     # ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
-    # ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+    ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
     # ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
     # ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
     # ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
@@ -1469,7 +1464,6 @@ data = [
 async def main():
     crawler = DataCrawler(data)
     await crawler.crawl()
-
 
 # Chạy chương trình chính
 if __name__ == "__main__":
