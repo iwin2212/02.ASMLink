@@ -716,7 +716,7 @@ class DataCrawler:
                     print(f"AFFILIATE_VIPRE: {payload} Session Token not found. Maybe This account has been locked.")
             except:
                 print(f"AFFILIATE_VIPRE: {payload} Error extracting Session Token")
-                return
+            return None
         elif url == UrlCrawler.NEURON_WRITER.loginAPI:
             responseCookies = response.cookies.get("contai_session_id")
             sessionId = responseCookies.key + "=" + responseCookies.value
@@ -731,7 +731,7 @@ class DataCrawler:
             else:
                 print(f"Error {response.status}: {await response.text()}")
                 response.raise_for_status()
-            return None, None, None
+            return None
 
 
     async def LoginAndGetAuthAsync(self, url, payload, headers, allow_redirects=False, **kwargs):
@@ -820,9 +820,7 @@ class DataCrawler:
                     return r_ssid, r_csrf_token
         else:
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url, data=payload, headers=headers, allow_redirects=allow_redirects
-                ) as response:
+                async with session.post(url, data=payload, headers=headers, allow_redirects=allow_redirects) as response:
                     return await self.getAuthFromResponse(url, response, payload)
 
     # step 3: fetch data
@@ -1498,7 +1496,7 @@ data = [
     # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
     # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
     # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
-    ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
+    # ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
     # ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
     # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9')
 ]
