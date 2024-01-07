@@ -595,7 +595,7 @@ class DataCrawler:
         else:
             return None
 
-    async def getAuthFromResponse(self, url, response):
+    async def getAuthFromResponse(self, url, response, payload):
         if url in (UrlCrawler.Goaffpro.loginAPI, UrlCrawler.Meross_Goaffpro.loginAPI):
             if response.status == 200:
                 data = await response.json()
@@ -708,9 +708,9 @@ class DataCrawler:
                 if session_token:
                     return session_token
                 else:
-                    print("Session Token not found. Maybe This account has been locked.")
+                    print(f"AFFILIATE_VIPRE: {payload} Session Token not found. Maybe This account has been locked.")
             except:
-                print("Hasoffers: Error extracting Session Token")
+                print(f"AFFILIATE_VIPRE: {payload} Error extracting Session Token")
                 return
         elif url == UrlCrawler.NEURON_WRITER.loginAPI:
             responseCookies = response.cookies.get("contai_session_id")
@@ -806,7 +806,7 @@ class DataCrawler:
                 async with session.post(
                     url, data=payload, headers=headers, allow_redirects=False
                 ) as response:
-                    return await self.getAuthFromResponse(url, response)
+                    return await self.getAuthFromResponse(url, response, payload)
 
     # step 3: fetch data
     def get_first_and_last_day(self, year, month):
@@ -1051,9 +1051,9 @@ class DataCrawler:
                     result_dict = {}
                     if len(resultsContent) > 0:
                         result_dict = {
-                            "Friends have visited us": resultsContent[0],
-                            "Friends have signed up with us": resultsContent[1],
-                            "Purchases made by friends": resultsContent[2],
+                            "Visited": resultsContent[0],
+                            "Signed up": resultsContent[1],
+                            "Purchases": resultsContent[2],
                         }
                     return result_dict
         elif (UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url):
@@ -1363,9 +1363,7 @@ class DataCrawler:
             }
             headers = {}
             loginAPI = (
-                UrlCrawler.CRAMLY_LEADDYNO.loginAPI
-                if UrlCrawler.CRAMLY_LEADDYNO.value in url
-                else UrlCrawler.TRADELLE_LEADDYNO.loginAPI
+                UrlCrawler.CRAMLY_LEADDYNO.loginAPI if UrlCrawler.CRAMLY_LEADDYNO.value in url else UrlCrawler.TRADELLE_LEADDYNO.loginAPI
             )
             token = await self.LoginAndGetAuthAsync(loginAPI, payload, headers)
             if token:
@@ -1400,7 +1398,7 @@ class DataCrawler:
                     )
             tokenHeaders = {"Cookie": sessionId}
             token = await self.LoginAndGetAuthAsync(
-                UrlCrawler.AFFILIATE_VIPRE.tokenAPI, {}, tokenHeaders
+                UrlCrawler.AFFILIATE_VIPRE.tokenAPI, sessionIdPayload, tokenHeaders
             )
             if token:
                 return {
