@@ -12,6 +12,28 @@ from capmonstercloudclient import CapMonsterClient, ClientOptions
 from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
 
 
+def fomatOutput(name: object, click: object, ref: object, sale: object, commission: object, balance: object) -> object:
+    '''
+        :param name: Tên nền tảng
+        :param click: số lần ng dùng click vô link ref.
+        :param ref: số người đăng ký tk dưới link mình
+        :param sale: số đơn hàng
+        :param commission: số tiền hoa hồng
+        :param balance: số tiền trong tk
+    '''
+    result = {
+        "click": click,
+        "ref": ref,
+        "sale": sale,
+        "commission": commission,
+        "balance": balance
+    }
+    isContainBase = True
+    if isContainBase:
+        result['name'] = name
+    return result
+
+
 class Crawler:
     def __init__(self, url, username, password) -> None:
         self.url = url
@@ -31,7 +53,7 @@ class DescribelyAndPostaffiliateproCrawler(Crawler):
             idx1 = cookie_string.index("=")
             idx2 = cookie_string.index(";")
 
-            cookie_string = cookie_string[idx1 + 1 : idx2]
+            cookie_string = cookie_string[idx1 + 1: idx2]
             return cookie_string
 
         async with aiohttp.ClientSession() as session:
@@ -396,7 +418,7 @@ class DescribelyAndPostaffiliateproCrawler(Crawler):
             # Hard core with string
             # Đã lấy được value clicks
             string_clicks = row1[clicks_idx:blank_idx]  # string clicks
-            value_clicks = string_clicks[string_clicks.index("s") + 1 :]
+            value_clicks = string_clicks[string_clicks.index("s") + 1:]
             data_crawl["Clicks"] = value_clicks
             # value totals
             string_totals = row1[totals_idx:]  # split string to get data Totals
@@ -432,8 +454,14 @@ class DescribelyAndPostaffiliateproCrawler(Crawler):
             value_sale_1 = row0[:sales_idx]
             value_sale_2 = row0[dollar_idx:fixed_idx].strip()
             data_crawl["Sales"] = [value_sale_1, value_sale_2]
-            return data_crawl
-
+            return fomatOutput(
+                name= "describely" if "describely" in self.url else "postaffiliatepro",
+                click=value_clicks,
+                ref=None,
+                sale=value_sale_2,
+                commission=value_totals,
+                balance=None
+            )
 
 class UrlCrawler(Enum):
     Goaffpro = "https://allpowers.goaffpro.com/login"
@@ -530,7 +558,7 @@ class UrlCrawler(Enum):
             return 'https://affiliates.withblaze.app/dashboard'
         if self is UrlCrawler.Tapfiliate_flocksocial:
             return 'https://affiliates.flocksocial.app/dashboard'
-		
+
     @property
     def tokenAPI(self):
         if self is UrlCrawler.Linkmink:
@@ -539,7 +567,7 @@ class UrlCrawler(Enum):
             return "https://fiverraffiliates.com/affiliatev2/"
         if self is UrlCrawler.AFFILIATE_VIPRE:
             return "https://affiliate.vipre.com/publisher/"
-        
+
 
 class DataCrawler:
     def __init__(self, data):
@@ -569,8 +597,8 @@ class DataCrawler:
         async with aiohttp.ClientSession() as session:
             headers = {"Cookie": response.headers.get("Set-Cookie")}
             async with session.get(
-                f"{str(UrlCrawler.Linkmink.loginAPI)[:str(UrlCrawler.Linkmink.loginAPI).rfind('/')]}/users/{userID}/auth-token",
-                headers=headers,
+                    f"{str(UrlCrawler.Linkmink.loginAPI)[:str(UrlCrawler.Linkmink.loginAPI).rfind('/')]}/users/{userID}/auth-token",
+                    headers=headers,
             ) as responseAuth:
                 if response.status == 200:
                     authToken = (await responseAuth.json())["token"] if response else ""
@@ -580,7 +608,7 @@ class DataCrawler:
             async with aiohttp.ClientSession() as session:
                 headers = {"Authorization": f"Bearer {authToken}"}
                 async with session.get(
-                    f"{UrlCrawler.Linkmink.tokenAPI}/token?cgid={cgid}", headers=headers
+                        f"{UrlCrawler.Linkmink.tokenAPI}/token?cgid={cgid}", headers=headers
                 ) as responseAuth:
                     if response.status == 200:
                         token = (
@@ -658,7 +686,7 @@ class DataCrawler:
                         headers = {"Cookie": cookies}
                         async with aiohttp.ClientSession() as session:
                             async with session.get(
-                                str(UrlCrawler.CELLXPERT.tokenAPI), headers=headers
+                                    str(UrlCrawler.CELLXPERT.tokenAPI), headers=headers
                             ) as responseAuth:
                                 if responseAuth.status == 200:
                                     page_content = await responseAuth.text()
@@ -733,7 +761,6 @@ class DataCrawler:
                 response.raise_for_status()
             return None
 
-
     async def LoginAndGetAuthAsync(self, url, payload, headers, allow_redirects=False, **kwargs):
         async with aiohttp.ClientSession() as session:
             async with session.post(url, data=payload, headers=headers, allow_redirects=allow_redirects) as response:
@@ -765,42 +792,39 @@ class DataCrawler:
             async with aiohttp.ClientSession() as session:
                 async with session.get(crawlUrl, headers=headers) as response:
                     data = await response.json()
-                    return (
-                        {str(UrlCrawler.Goaffpro): data}
-                        if url in (UrlCrawler.Goaffpro.value)
-                        else {str(UrlCrawler.Meross_Goaffpro): data}
+                    baseName = 'Goaffpro' if url in ( UrlCrawler.Goaffpro.value) else 'Meross_Goaffpro'
+                    result = fomatOutput(
+                        name=baseName,
+                        click=None,
+                        ref=data.get('referrals'),
+                        sale=data.get('num_orders'),
+                        commission=data.get('commission'),
+                        balance=data.get('revenue')
                     )
+                    return result
         elif UrlCrawler.Shoutout.value in url:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{UrlCrawler.Shoutout.dataAPI}?id={kwargs.get('id', '')}"
+                        f"{UrlCrawler.Shoutout.dataAPI}?id={kwargs.get('id', '')}"
                 ) as response:
                     if response.status == 200:
                         html_content = await response.text()
                         soup = BeautifulSoup(html_content, "html.parser")
 
                         total_revenue_element = soup.find(id="totalRevenueTxt")
-                        return {
-                            "Shoutout": {
-                                "salesCommissionTxt": soup.select(
-                                    ".card .card-body h1.card-title"
-                                )[0].get_text(strip=True),
-                                "leadTxt": soup.select(
-                                    ".card .card-body h1.card-title"
-                                )[1].get_text(strip=True),
-                                "totalRevenueTxt": total_revenue_element.get_text(
-                                    strip=True
-                                )
-                                if total_revenue_element is not None
-                                else None,
-                                "totalCommissionTxt": soup.select(
-                                    ".card .card-body .col-12 h2"
-                                )[1].get_text(strip=True),
-                                "pendingCommissionTxt": soup.select(
-                                    ".card .card-body .col-12 h2"
-                                )[2].get_text(strip=True),
-                            }
-                        }
+                        salesCommissionTxt = soup.select(".card .card-body h1.card-title")[0].get_text(strip=True)
+                        leadTxt = soup.select(".card .card-body h1.card-title")[1].get_text(strip=True)
+                        totalRevenueTxt = total_revenue_element.get_text(strip=True) if total_revenue_element is not None else None
+                        totalCommissionTxt = soup.select( ".card .card-body .col-12 h2" )[1].get_text(strip=True)
+                        pendingCommissionTxt = soup.select( ".card .card-body .col-12 h2" )[2].get_text(strip=True)
+                        return fomatOutput(
+                            name = "Shoutout",
+                            click = None,
+                            ref = None,
+                            sale = salesCommissionTxt,
+                            commission = totalCommissionTxt,
+                            balance = totalRevenueTxt
+                        )
                     else:
                         print(f"Error: {response.status}")
                         return None
@@ -808,7 +832,7 @@ class DataCrawler:
             headers = {"Cookie": kwargs.get("cookie", "")}
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    str(UrlCrawler.Uppromote.dataAPI), headers=headers
+                        str(UrlCrawler.Uppromote.dataAPI), headers=headers
                 ) as response:
                     if response.status == 200:
                         html_content = await response.text()
@@ -817,14 +841,23 @@ class DataCrawler:
                         selected_elements = soup.select(
                             "#commission .panel-body__pending, #commission .panel-body__approved, #commission .panel-body__paid"
                         )
-                        return {
-                            "Uppromote": {
-                                label_element.text.strip(): element.text.strip()
-                                for element in selected_elements
-                                if (label_element := element.find_next(class_="my-0"))
-                                is not None
-                            }
+                        uppromote = {
+                            label_element.text.strip(): element.text.strip()
+                            for element in selected_elements
+                            if (label_element := element.find_next(class_="my-0"))
+                               is not None
                         }
+                        pending_value = int(uppromote.get("Pending").replace("$", ""))
+                        approved_value = int(uppromote.get("Approved").replace("$", ""))
+                        result =  fomatOutput(
+                            name="Uppromote",
+                            click=None,
+                            ref=None,
+                            sale=None,
+                            commission="${}".format(pending_value + approved_value),
+                            balance=None
+                        )
+                        return result
                     else:
                         print(f"Error: {response.status}")
                         return None
@@ -836,15 +869,15 @@ class DataCrawler:
             headers = {
                 "Authorization": f'Bearer {kwargs.get("authToken", "")}',
                 "Cookie": kwargs.get("cookie", "")
-                + f';lm_auth={kwargs.get("token", "")}',
+                          + f';lm_auth={kwargs.get("token", "")}',
             }
             first_day, last_day = self.get_first_and_last_day(
                 datetime.now().year, datetime.now().month
             )
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{UrlCrawler.Linkmink.tokenAPI}/clicks/metrics?livemode=true&min_date={self.convert_to_unix_timestamp(first_day)}&max_date={self.convert_to_unix_timestamp(last_day)}&timezone=Asia%2FBangkok",
-                    headers=headers,
+                        f"{UrlCrawler.Linkmink.tokenAPI}/clicks/metrics?livemode=true&min_date={self.convert_to_unix_timestamp(first_day)}&max_date={self.convert_to_unix_timestamp(last_day)}&timezone=Asia%2FBangkok",
+                        headers=headers,
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
@@ -854,8 +887,8 @@ class DataCrawler:
 
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{UrlCrawler.Linkmink.tokenAPI}/conversions/metrics?livemode=true&min_date={self.convert_to_unix_timestamp(first_day)}&max_date={self.convert_to_unix_timestamp(last_day)}&withCredentials=true&timezone=Asia%2FBangkok",
-                    headers=headers,
+                        f"{UrlCrawler.Linkmink.tokenAPI}/conversions/metrics?livemode=true&min_date={self.convert_to_unix_timestamp(first_day)}&max_date={self.convert_to_unix_timestamp(last_day)}&withCredentials=true&timezone=Asia%2FBangkok",
+                        headers=headers,
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
@@ -865,21 +898,22 @@ class DataCrawler:
 
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{UrlCrawler.Linkmink.tokenAPI}/commissions/metrics?livemode=true&min_date={self.convert_to_unix_timestamp(first_day)}&max_date={self.convert_to_unix_timestamp(last_day)}&timezone=Asia%2FBangkok",
-                    headers=headers,
+                        f"{UrlCrawler.Linkmink.tokenAPI}/commissions/metrics?livemode=true&min_date={self.convert_to_unix_timestamp(first_day)}&max_date={self.convert_to_unix_timestamp(last_day)}&timezone=Asia%2FBangkok",
+                        headers=headers,
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
                         commissions = result["metrics"]
                     else:
                         print(f"Error: {response.status} -  {await response.text()}")
-            return {
-                "Linkmink": {
-                    "traffic": traffic,
-                    "conversions": conversions,
-                    "commissions": commissions,
-                }
-            }
+            return fomatOutput(
+                name="Linkmink",
+                click=traffic,
+                ref=None,
+                sale=None,
+                commission=commissions,
+                balance=None
+            )
         elif url == UrlCrawler.CELLXPERT.value:
             headers = {
                 "affiliate_url": "Fiverr",
@@ -890,15 +924,23 @@ class DataCrawler:
             )
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{UrlCrawler.CELLXPERT.dataAPI}&enddate={quote(last_day.strftime('%m/%d/%Y'))}&startdate={quote(first_day.strftime('%m/%d/%Y'))}&uniqueId=793046888",
-                    headers=headers,
+                        f"{UrlCrawler.CELLXPERT.dataAPI}&enddate={quote(last_day.strftime('%m/%d/%Y'))}&startdate={quote(first_day.strftime('%m/%d/%Y'))}&uniqueId=793046888",
+                        headers=headers,
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
-                        return {"CELLXPERT": result}
+                        overview = result.get('Overview')[0]
+                        return fomatOutput(
+                            name="Cellxpert",
+                            click=overview.get('Clicks'),
+                            ref=overview.get('Registrations'),
+                            sale=None,
+                            commission=overview.get('Commission'),
+                            balance=None
+                        )
                     else:
                         print(
-                            f"Error CELLXPERT {response.status}: {await response.text()}"
+                            f"Error CELLXPERT {response.status}"
                         )
                         return None
         elif url == UrlCrawler.BRAIN_STORM_FORCE.value:
@@ -908,7 +950,7 @@ class DataCrawler:
             )
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    str(UrlCrawler.BRAIN_STORM_FORCE.dataAPI), headers=headers
+                        str(UrlCrawler.BRAIN_STORM_FORCE.dataAPI), headers=headers
                 ) as response:
                     if response.status == 200:
                         html_content = await response.text()
@@ -917,12 +959,18 @@ class DataCrawler:
                             ".text-sm.leading-5.font-medium.text-gray-500.truncate"
                         )
                         values = soup.select(".items-baseline div")
-                        return {
-                            "BRAIN_STORM_FORCE": {
-                                key.text.strip(): value.text.strip()
-                                for key, value in zip(keys, values)
-                            }
+                        bsf = {
+                            key.text.strip(): value.text.strip()
+                            for key, value in zip(keys, values)
                         }
+                        return fomatOutput(
+                            name="BRAIN_STORM_FORCE",
+                            click=bsf.get('Visits'),
+                            ref=bsf.get('Referrals'),
+                            sale=None,
+                            commission=None,
+                            balance=bsf.get('Total Earnings')
+                        )
                     else:
                         print(
                             f"Error BRAIN_STORM_FORCE {response.status}: {await response.text()}"
@@ -935,9 +983,17 @@ class DataCrawler:
             }
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    str(UrlCrawler.REDITUS.dataAPI), headers=headers
+                        str(UrlCrawler.REDITUS.dataAPI), headers=headers
                 ) as response:
-                    return await response.json()
+                    result = await response.json()
+                    return fomatOutput(
+                        name="reditus",
+                        click=result.get('clicks_count'),
+                        ref=result.get('referrals_count'),
+                        sale=result.get('total_sold'),
+                        commission=result.get('commission_earned'),
+                        balance=None
+                    )
         elif (UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url):
             getInfoHeaders = {
                 ":method": "GET",
@@ -967,9 +1023,9 @@ class DataCrawler:
                 dataRequestUrl = UrlCrawler.TRADELLE_LEADDYNO.dataAPI
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    str(dataRequestUrl),
-                    headers={**getInfoHeaders},
-                    allow_redirects=False,
+                        str(dataRequestUrl),
+                        headers={**getInfoHeaders},
+                        allow_redirects=False,
                 ) as response:
                     content = (
                         await response.read()
@@ -979,14 +1035,23 @@ class DataCrawler:
                     soup = BeautifulSoup(pageSource, "html.parser")
                     results = soup.select(".aff-progress-digit>b")
                     resultsContent = [int(element.text) for element in results]
-                    result_dict = {}
                     if len(resultsContent) > 0:
-                        result_dict = {
-                            "Visited": resultsContent[0],
-                            "Signed up": resultsContent[1],
-                            "Purchases": resultsContent[2],
-                        }
-                    return result_dict
+                        return fomatOutput(
+                            name="Leaddyno",
+                            click=resultsContent[0],
+                            ref=resultsContent[1],
+                            sale=None,
+                            commission=None,
+                            balance=resultsContent[2]
+                        )
+                    return fomatOutput(
+                        name="Leaddyno",
+                        click=None,
+                        ref=None,
+                        sale=None,
+                        commission=None,
+                        balance=None,
+                    )
         elif (UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url):
             loginAPI = (
                 UrlCrawler.AFFILIATE_HIDE_MY_IP.loginAPI
@@ -997,7 +1062,7 @@ class DataCrawler:
             payload = f"csrf_token=&userid={kwargs.get('email')}&password={kwargs.get('password')}&token_affiliate_login=2eed4d63883d9ed92399"
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    str(loginAPI), data=payload, headers=headers
+                        str(loginAPI), data=payload, headers=headers
                 ) as response:
                     content = (
                         await response.read()
@@ -1012,13 +1077,22 @@ class DataCrawler:
                     resultsContent.pop()
                     resultsContent = resultsContent + twoLastElement
                     if len(resultsContent) > 0:
-                        result_dict = {
-                            "Total Transactions": resultsContent[0],
-                            "Current Earnings": resultsContent[1],
-                            "Total Earned To Date": resultsContent[2],
-                            "Unique Visitors": resultsContent[3],
-                            "Sales Ratio": resultsContent[4],
-                        }
+                        # result_dict = {
+                        #     "Total Transactions": resultsContent[0],
+                        #     "Current Earnings": resultsContent[1],
+                        #     "Total Earned To Date": resultsContent[2],
+                        #     "Unique Visitors": resultsContent[3],
+                        #     "Sales Ratio": resultsContent[4],
+                        # }
+                        name = 'affiliate.hide.my.ip' if UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url else 'affiliate.simplybook'
+                        result_dict = fomatOutput(
+                            name=name,
+                            click=resultsContent[0],
+                            ref=None,
+                            sale=resultsContent[4],
+                            commission=None,
+                            balance=resultsContent[2]
+                        )
                         return result_dict
         elif UrlCrawler.AFFILIATE_VIPRE.value in url:
             dataPayload = {
@@ -1034,26 +1108,36 @@ class DataCrawler:
             }
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "https://api-p03.hasoffers.com/v3/Affiliate_Report.json",
-                    data=dataPayload,
+                        "https://api-p03.hasoffers.com/v3/Affiliate_Report.json",
+                        data=dataPayload,
                 ) as response:
                     content = await response.json()
                     if content:
-                        return content["response"]["data"]["data"]
+                        result = content["response"]["data"]["data"]
+                        stat = result[0].get('Stat')
+                        return fomatOutput(
+                            name='Affiliate vipre',
+                            click=stat.get('clicks'),
+                            ref=stat.get('conversions'),
+                            sale=None,
+                            commission=None,
+                            balance=stat.get('payout')
+                        )
                     else:
                         print("Has offer: No 'response' attribute in the JSON content.")
         elif url == UrlCrawler.NEURON_WRITER.dataAPI:
             headers = {"Cookie": kwargs.get("sessionId")}
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    str(UrlCrawler.NEURON_WRITER.dataAPI), headers=headers
+                        str(UrlCrawler.NEURON_WRITER.dataAPI), headers=headers
                 ) as response:
                     content = await response.read()
                     pageSource = content.decode("utf-8")
                     soup = BeautifulSoup(pageSource, "html.parser")
+                    totalClicks = 0
                     data = []
                     for row in soup.select(
-                        'table[data-export_fname="aff_daily_stats"] tbody tr'
+                            'table[data-export_fname="aff_daily_stats"] tbody tr'
                     ):
                         date = row.select("td")[0].text.strip()
                         clicks = row.select("td")[1].text.strip()
@@ -1064,9 +1148,15 @@ class DataCrawler:
                             "unique IPs": unique_ips,
                         }
                         data.append(entry)
-                return data
-        
-        
+                        totalClicks += int (clicks)
+                return fomatOutput(
+                    name='app.neuronwriter.com',
+                    click=totalClicks,
+                    ref=None,
+                    sale=None,
+                    commission=None,
+                    balance=None
+                )
         elif UrlCrawler.affise.value in url:
             headers = {
                 'Api-Key': kwargs.get('api_key', ''),
@@ -1075,9 +1165,26 @@ class DataCrawler:
             async with aiohttp.ClientSession() as session:
                 async with session.get(str(UrlCrawler.affise.dataAPI), headers=headers) as response:
                     if response.status == 200:
-                        return {
-                            "affise": await response.json()
-                        }
+                        try:
+                            result = await response.json()
+                            affiseData = result.get('data')
+                            total = {"leads": 0, "uniq": 0, "raw": 0, "revenue": {"USD": 0, "": 0}}
+                            for day_data in affiseData.values():
+                                total["leads"] += day_data["leads"]
+                                total["uniq"] += day_data["uniq"]
+                                total["raw"] += day_data["raw"]
+                                total["revenue"]["USD"] += day_data["revenue"]["USD"]
+                            return fomatOutput(
+                                name='affise',
+                                click=total["leads"],
+                                ref=None,
+                                sale=None,
+                                commission=None,
+                                balance=total["revenue"]["USD"]
+                            )
+                        except:
+                            print(f"Error affise convert")
+                            return None
                     else:
                         print(f"Error affise {response.status}: {await response.text()}")
                         return None
@@ -1142,10 +1249,17 @@ class DataCrawler:
                                 "Total Orders": orders_total,
                                 "Total Your Earnings": earnings_total,
                             }
-                            return data_crawl
+                            return fomatOutput(
+                                name='affiliate.panel',
+                                click=visitors_total,
+                                ref=None,
+                                sale=orders_total,
+                                commission=None,
+                                balance=earnings_total
+                            )
                     else:
                         return f"Error with login website , {url}"
-		
+
     # Crawl data func
     async def crawl_data(self, args):
         if len(args) <= 0:
@@ -1248,7 +1362,7 @@ class DataCrawler:
             affwp_login_nonce = ""
             async with aiohttp.ClientSession() as session:
                 async with session.get(str(UrlCrawler.BRAIN_STORM_FORCE.dataAPI)) as response:
-                    html_content = await response.text()                    
+                    html_content = await response.text()
                     soup = BeautifulSoup(html_content, 'html.parser')
                     affwp_login_nonce_input = soup.select_one('input[name="affwp_login_nonce"]')
                     if not affwp_login_nonce_input: return
@@ -1291,9 +1405,7 @@ class DataCrawler:
             )
             token = await self.LoginAndGetAuthAsync(loginAPI, payload, headers)
             if token:
-                return {
-                    "CRAMLY_LEADDYNO" : await self.fetch_data(url, token=token)
-				}
+                return await self.fetch_data(url, token=token)
         elif (UrlCrawler.AFFILIATE_HIDE_MY_IP.value in url or UrlCrawler.AFFILIATE_SIMPLYBOOK.value in url):
             return await self.fetch_data(url, email=email, password=password)
         elif UrlCrawler.AFFILIATE_VIPRE.value in url:
@@ -1311,10 +1423,10 @@ class DataCrawler:
             }
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    str(UrlCrawler.AFFILIATE_VIPRE.loginAPI),
-                    data=sessionIdPayload,
-                    headers=sessionIdHeaders,
-                    allow_redirects=False,
+                        str(UrlCrawler.AFFILIATE_VIPRE.loginAPI),
+                        data=sessionIdPayload,
+                        headers=sessionIdHeaders,
+                        allow_redirects=False,
                 ) as response:
                     responseCookies = response.cookies.get("PHPSESSID")
                     sessionId = (
@@ -1327,9 +1439,7 @@ class DataCrawler:
                 UrlCrawler.AFFILIATE_VIPRE.tokenAPI, sessionIdPayload, tokenHeaders
             )
             if token:
-                return {
-                    "AFFILIATE_VIPRE": await self.fetch_data(url, token=token)
-				}
+                return await self.fetch_data(url, token=token)
         elif UrlCrawler.NEURON_WRITER.value in url:
             payload = {"email": email, "password": password, "redirect_url": "/"}
             sessionId = await self.LoginAndGetAuthAsync(
@@ -1338,7 +1448,7 @@ class DataCrawler:
             return await self.fetch_data(
                 UrlCrawler.NEURON_WRITER.dataAPI, sessionId=sessionId
             )
-        
+
         elif UrlCrawler.AFFILIATLYCOM.value in url:
             return await self.fetch_data(url, email=email, password=password)
         elif (UrlCrawler.DESCRIBELY.value in url or UrlCrawler.POSTAFFILIATEPRO.value in url):
@@ -1348,13 +1458,14 @@ class DataCrawler:
             payload = {
                 "email": email,
                 "password": password,
-                "remember":1
+                "remember": 1
             }
             headers = {'X-Requested-With': 'XMLHttpRequest'}
             result = await self.LoginAndGetAuthAsync(UrlCrawler.affise.loginAPI, payload, headers, True)
             if result:
                 api_key, access_header, refresh_header = result
-                return await self.fetch_data(url, api_key=api_key, access_header=access_header, refresh_header=refresh_header)
+                return await self.fetch_data(url, api_key=api_key, access_header=access_header,
+                                             refresh_header=refresh_header)
 
     async def crawl(self):
         result = await pl.task.map(self.crawl_data, self.data, workers=100)
@@ -1362,30 +1473,31 @@ class DataCrawler:
 
 
 data = [
-    # ("https://allpowers.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    # ("https://meross-affiliate.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    # ("https://www.shoutout.global/login?id=22wbe", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    # ("https://www.shoutout.global/login?id=obbi7", "teamasmads@gmail.com", "E9vQRQmPG!a.7m6"),
-    # ("https://af.uppromote.com/solar-power-store-canada/login", "teamasmads@gmail.com", "2N*G5k$7ux5j2!F"),
-    # ('https://app.linkmink.com/login', 'evenelson380df@gmail.com', 'jfLo3HlVelSxkKQ'),
-    # ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
-    # ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
-    # ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
-    # ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
-    # ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'), #This affiliate program has been deactivated by the owner
-    # ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
-    # ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
-    # ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
-    # ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
-    # ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
-    # ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'), 
-    # ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
-    # ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
-    # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
-    # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
-    # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
-    # ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
-    ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
+    ("https://allpowers.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    ("https://meross-affiliate.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    ("https://www.shoutout.global/login?id=22wbe", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    ("https://www.shoutout.global/login?id=obbi7", "teamasmads@gmail.com", "E9vQRQmPG!a.7m6"),
+    ("https://af.uppromote.com/solar-power-store-canada/login", "teamasmads@gmail.com", "2N*G5k$7ux5j2!F"),
+    ('https://app.linkmink.com/login', 'evenelson380df@gmail.com', 'jfLo3HlVelSxkKQ'),
+    ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
+    ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
+    ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
+    ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
+    ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'), #This affiliate program has been deactivated by the owner
+    ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
+    ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
+    ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
+    ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+    ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
+    # ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
+    ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
+
+    ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
+    ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
+    ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
+    ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
+    ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
+    # ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
     # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9')
 ]
 
@@ -1393,6 +1505,7 @@ data = [
 async def main():
     crawler = DataCrawler(data)
     await crawler.crawl()
+
 
 # Chạy chương trình chính
 if __name__ == "__main__":
