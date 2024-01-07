@@ -1,16 +1,16 @@
+import asyncio
+import json
+import re
+from datetime import datetime, timedelta
+from enum import Enum
+from urllib.parse import parse_qs, quote, urljoin, urlparse
+
+import aiohttp
+import pypeln as pl
+from bs4 import BeautifulSoup
 from capmonstercloudclient import CapMonsterClient, ClientOptions
 from capmonstercloudclient.requests import RecaptchaV2ProxylessRequest
-import aiohttp
-import asyncio
-import re
-from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
-from urllib.parse import urlparse, parse_qs
-import pypeln as pl
-from urllib.parse import urljoin
-from enum import Enum
-import json
-from urllib.parse import quote
+
 
 class Crawler:
     def __init__(self, url, username, password) -> None:
@@ -451,13 +451,13 @@ class DataCrawler:
             tokenAPI = UrlCrawler.AFFILIATE_FLOCKSOCIAL.tokenAPI if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url else UrlCrawler.AFFILIATE_WITHBLAZE.tokenAPI
             async with aiohttp.ClientSession() as session:
                 r_ssid, r_csrf_token = None, None
-                async with session.get(loginAPI, headers={}) as res:
+                async with session.get(str(loginAPI), headers={}) as res:
                     if res.status == 200:
                         ssid = res.cookies.get('TAPSESSID')
                         headers = {
                             'Cookie': f'TAPSESSID={ssid}'
                         }
-                        async with session.get(tokenAPI, headers={}) as res_form:
+                        async with session.get(str(tokenAPI), headers={}) as res_form:
                             if res.status == 200:
                                 data_res = await res_form.json()
                                 token = data_res["token"]
@@ -470,7 +470,7 @@ class DataCrawler:
                                 if(isCaptcha):
                                     websiteKey ="6LdHHAcUAAAAACOdiyUe67H3Ym6s1kKeetuiuFjd"
                                     payload["g-recaptcha-response"] = self.solve_captcha(url, websiteKey)
-                                async with session.post(loginCheckAPI, headers=headers, data=payload) as res_login:
+                                async with session.post(str(loginCheckAPI), headers=headers, data=payload) as res_login:
                                     isLoginSuccess = await res_login.text()
                                     if "Dashboard | " in isLoginSuccess:
                                         r_csrf_token = await get_csrf_token_from_html(await res_login.text())
@@ -627,7 +627,7 @@ class DataCrawler:
                 "Content-Type": "application/json"
             }
             async with aiohttp.ClientSession() as session:
-                async with session.get(UrlCrawler.REDITUS.dataAPI, headers=headers) as response:
+                async with session.get(str(UrlCrawler.REDITUS.dataAPI), headers=headers) as response:
                     return await response.json()
         elif UrlCrawler.CRAMLY_LEADDYNO.value in url or UrlCrawler.TRADELLE_LEADDYNO.value in url:
             getInfoHeaders = {
@@ -651,12 +651,13 @@ class DataCrawler:
                 "cookie": kwargs.get('token', ''),
                 "if-none-match": "W/'2fc70b5ebd7a45aad667e0be52dbb996'",
             }
+            dataRequestUrl = ""
             if UrlCrawler.CRAMLY_LEADDYNO.value in url:
                 dataRequestUrl = UrlCrawler.CRAMLY_LEADDYNO.dataAPI
             if UrlCrawler.TRADELLE_LEADDYNO.value in url:
                 dataRequestUrl = UrlCrawler.TRADELLE_LEADDYNO.dataAPI
             async with aiohttp.ClientSession() as session:
-                async with session.get(dataRequestUrl, headers={**getInfoHeaders}, allow_redirects=False) as response:
+                async with session.get(str(dataRequestUrl), headers={**getInfoHeaders}, allow_redirects=False) as response:
                     content = await response.read()  # Read the response content as bytes
                     # Decode the bytes to a string
                     pageSource = content.decode('utf-8')
@@ -675,7 +676,7 @@ class DataCrawler:
             }
             payload = f"csrf_token=&userid={kwargs.get('email')}&password={kwargs.get('password')}&token_affiliate_login=2eed4d63883d9ed92399"
             async with aiohttp.ClientSession() as session:
-                async with session.post(loginAPI, data=payload, headers=headers) as response:
+                async with session.post(str(loginAPI), data=payload, headers=headers) as response:
                     content = await response.read()  # Read the response content as bytes
                     # Decode the bytes to a string
                     pageSource = content.decode('utf-8')
@@ -689,7 +690,7 @@ class DataCrawler:
                     if (len(resultsContent) > 0):
                         result_dict = {
                             'Total Transactions': resultsContent[0], 'Current Earnings': resultsContent[1], 'Total Earned To Date': resultsContent[2], 'Unique Visitors': resultsContent[3], 'Sales Ratio': resultsContent[4]}
-                    return result_dict
+                        return result_dict
         elif UrlCrawler.AFFILIATE_VIPRE.value in url:
             dataPayload = {
                 "fields[]": ["Stat.impressions", "Stat.clicks", "Stat.conversions", "Stat.payout"],
@@ -711,7 +712,7 @@ class DataCrawler:
                 "Cookie": kwargs.get('sessionId')
             }
             async with aiohttp.ClientSession() as session:
-                async with session.get(UrlCrawler.NEURON_WRITER.dataAPI, headers=headers) as response:
+                async with session.get(str(UrlCrawler.NEURON_WRITER.dataAPI), headers=headers) as response:
                     content = await response.read()
                     pageSource = content.decode('utf-8')
                     soup = BeautifulSoup(pageSource, "html.parser")
@@ -756,7 +757,7 @@ class DataCrawler:
                     login_hsf_input = soup.find('input', {'name': 'login_hsf'})
                     login_hsf_value = login_hsf_input['value'] if login_hsf_input else None
                     login_hsf_time_input = soup.find('input', {'name': 'login_hsf_time'})
-                    login_hsf_time_value = login_hsf_time_input['value'] if login_hsf_time_input else None
+                    login_hsf_time_value = login_hsf_time_input["value"] if login_hsf_time_input else None
 
                 _url = f"{url}/af-1040475/affiliate.panel"
                 payload = {
@@ -781,9 +782,9 @@ class DataCrawler:
                             unpaid_value = unpaid_div.strong.text
                             # table = soup.find('table', class_='stats_n_orders')
                             total_row = soup.find('td', string='Total:').parent
-                            visitors_total = total_row.find_all('td')[1].text
-                            orders_total = total_row.find_all('td')[2].text
-                            earnings_total = total_row.find_all('td')[4].text
+                            visitors_total = total_row.find_all('td')[1].text if total_row else None
+                            orders_total = total_row.find_all('td')[2].text if total_row else None
+                            earnings_total = total_row.find_all('td')[4].text if total_row else None
                             data_crawl = {
                                 'Unpaid Earnings': unpaid_value,
                                 'Total Visitors': visitors_total,
@@ -792,7 +793,7 @@ class DataCrawler:
                             }
                             return data_crawl
                     else:
-                        return f"Error with login website , {self.url}"
+                        return f"Error with login website , {url}"
     # Crawl data func
     async def crawl_data(self, args):
         if len(args)<=0:
@@ -934,9 +935,9 @@ class DataCrawler:
                 "content-type":	"application/x-www-form-urlencoded",
             }
             async with aiohttp.ClientSession() as session:
-                async with session.post(UrlCrawler.AFFILIATE_VIPRE.loginAPI, data=sessionIdPayload, headers=sessionIdHeaders, allow_redirects=False) as response:
+                async with session.post(str(UrlCrawler.AFFILIATE_VIPRE.loginAPI), data=sessionIdPayload, headers=sessionIdHeaders, allow_redirects=False) as response:
                     responseCookies = response.cookies.get('PHPSESSID')
-                    sessionId = responseCookies.key + "=" + responseCookies.value
+                    sessionId = responseCookies.key + "=" + responseCookies.value if responseCookies else None
             tokenHeaders = {
                 "Cookie": sessionId
             }
