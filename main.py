@@ -455,6 +455,7 @@ class UrlCrawler(Enum):
     AFFILIATLYCOM = "affiliatly.com"
     POSTAFFILIATEPRO = "https://aejuice.postaffiliatepro.com/"
     DESCRIBELY = "https://partners.describely.ai/affiliates/login.php"
+    affise = 'https://planner5d.affise.com/v2'
 
     def __str__(self):
         return self.name
@@ -491,6 +492,8 @@ class UrlCrawler(Enum):
             return "https://affiliates.withblaze.app/login"
         if self is UrlCrawler.AFFILIATE_FLOCKSOCIAL:
             return "https://affiliates.flocksocial.com/login"
+        if self is UrlCrawler.affise:
+            return 'https://planner5d.affise.com/signin'
 
     @property
     def loginCheckAPI(self):
@@ -521,7 +524,9 @@ class UrlCrawler(Enum):
             return "https://tradelle.leaddyno.com/affiliate"
         if self is UrlCrawler.NEURON_WRITER:
             return "https://app.neuronwriter.com/ucp/affiliate"
-
+        if self is UrlCrawler.affise:
+            return 'https://api-planner5d.affise.com/3.0/stats/last-ten-days'
+		
     @property
     def tokenAPI(self):
         if self is UrlCrawler.Linkmink:
@@ -716,8 +721,20 @@ class DataCrawler:
             responseCookies = response.cookies.get("contai_session_id")
             sessionId = responseCookies.key + "=" + responseCookies.value
             return sessionId
+        elif url == UrlCrawler.affise.loginAPI:
+            if response.status == 200:
+                if response:
+                    data = await response.json()
+                    return data.get("api_key"), data.get("access_header"), data.get("refresh_header")
+                else:
+                    print("Không tìm thấy token.")
+            else:
+                print(f"Error {response.status}: {await response.text()}")
+                response.raise_for_status()
+            return None, None, None
 
-    async def LoginAndGetAuthAsync(self, url, payload, headers, **kwargs):
+
+    async def LoginAndGetAuthAsync(self, url, payload, headers, allow_redirects=False, **kwargs):
         if (UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url):
             async def get_csrf_token_from_html(html_content):
                 soup = BeautifulSoup(html_content, "html.parser")
@@ -804,7 +821,7 @@ class DataCrawler:
         else:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    url, data=payload, headers=headers, allow_redirects=False
+                    url, data=payload, headers=headers, allow_redirects=allow_redirects
                 ) as response:
                     return await self.getAuthFromResponse(url, response, payload)
 
@@ -1157,6 +1174,20 @@ class DataCrawler:
                         #     print(item)
                     else:
                         print("Error fetch data", response0.text)
+        elif UrlCrawler.affise.value in url:
+            headers = {
+                'Api-Key': kwargs.get('api_key', ''),
+                'Authorization': f"Bearer {kwargs.get('refresh_header', '')}",
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.get(str(UrlCrawler.affise.dataAPI), headers=headers) as response:
+                    if response.status == 200:
+                        return {
+                            "affise": await response.json()
+                        }
+                    else:
+                        print(f"Error affise {response.status}: {await response.text()}")
+                        return None
         elif UrlCrawler.AFFILIATLYCOM.value in url:
             async with aiohttp.ClientSession() as session:
                 _url = f"{url}/af-1040475/affiliate.panel"
@@ -1221,7 +1252,7 @@ class DataCrawler:
                             return data_crawl
                     else:
                         return f"Error with login website , {url}"
-
+		
     # Crawl data func
     async def crawl_data(self, args):
         if len(args) <= 0:
@@ -1427,6 +1458,17 @@ class DataCrawler:
         elif (UrlCrawler.DESCRIBELY.value in url or UrlCrawler.POSTAFFILIATEPRO.value in url):
             crawler = DescribelyAndPostaffiliateproCrawler(*args)
             return await crawler.crawl()
+        elif url == UrlCrawler.affise.value:
+            payload = {
+                "email": email,
+                "password": password,
+                "remember":1
+            }
+            headers = {'X-Requested-With': 'XMLHttpRequest'}
+            result = await self.LoginAndGetAuthAsync(UrlCrawler.affise.loginAPI, payload, headers, True)
+            if result:
+                api_key, access_header, refresh_header = result
+                return await self.fetch_data(url, api_key=api_key, access_header=access_header, refresh_header=refresh_header)
 
     async def crawl(self):
         result = await pl.task.map(self.crawl_data, self.data, workers=100)
@@ -1456,6 +1498,7 @@ data = [
     # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
     # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
     # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
+    ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
     # ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
     # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9')
 ]
