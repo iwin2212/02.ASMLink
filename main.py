@@ -450,8 +450,8 @@ class UrlCrawler(Enum):
     AFFILIATE_SIMPLYBOOK = "affiliate.simplybook.me"
     AFFILIATE_VIPRE = "affiliate.vipre.com"
     NEURON_WRITER = "app.neuronwriter.com"
-    AFFILIATE_WITHBLAZE = "affiliates.withblaze.app"
-    AFFILIATE_FLOCKSOCIAL = "affiliates.flocksocial.com"
+    Tapfiliate_withblaze = 'https://affiliates.withblaze.app/'
+    Tapfiliate_flocksocial = 'https://affiliates.flocksocial.com'
     AFFILIATLYCOM = "affiliatly.com"
     POSTAFFILIATEPRO = "https://aejuice.postaffiliatepro.com/"
     DESCRIBELY = "https://partners.describely.ai/affiliates/login.php"
@@ -488,18 +488,18 @@ class UrlCrawler(Enum):
             return "https://affiliate.vipre.com/"
         if self is UrlCrawler.NEURON_WRITER:
             return "https://app.neuronwriter.com/ucp/login"
-        if self is UrlCrawler.AFFILIATE_WITHBLAZE:
-            return "https://affiliates.withblaze.app/login"
-        if self is UrlCrawler.AFFILIATE_FLOCKSOCIAL:
-            return "https://affiliates.flocksocial.com/login"
+        if self is UrlCrawler.Tapfiliate_withblaze:
+            return 'https://affiliates.withblaze.app/login'
+        if self is UrlCrawler.Tapfiliate_flocksocial:
+            return 'https://affiliates.flocksocial.app/login'
         if self is UrlCrawler.affise:
             return 'https://planner5d.affise.com/signin'
 
     @property
     def loginCheckAPI(self):
-        if self is UrlCrawler.AFFILIATE_WITHBLAZE:
+        if self is UrlCrawler.Tapfiliate_withblaze:
             return "https://affiliates.withblaze.app/login_check"
-        if self is UrlCrawler.AFFILIATE_FLOCKSOCIAL:
+        if self is UrlCrawler.Tapfiliate_withblaze:
             return "https://affiliates.flocksocial.com/login_check"
 
     @property
@@ -526,6 +526,10 @@ class UrlCrawler(Enum):
             return "https://app.neuronwriter.com/ucp/affiliate"
         if self is UrlCrawler.affise:
             return 'https://api-planner5d.affise.com/3.0/stats/last-ten-days'
+        if self is UrlCrawler.Tapfiliate_withblaze:
+            return 'https://affiliates.withblaze.app/dashboard'
+        if self is UrlCrawler.Tapfiliate_flocksocial:
+            return 'https://affiliates.flocksocial.app/dashboard'
 		
     @property
     def tokenAPI(self):
@@ -535,11 +539,7 @@ class UrlCrawler(Enum):
             return "https://fiverraffiliates.com/affiliatev2/"
         if self is UrlCrawler.AFFILIATE_VIPRE:
             return "https://affiliate.vipre.com/publisher/"
-        if self is UrlCrawler.AFFILIATE_WITHBLAZE:
-            return "https://affiliates.withblaze.app/_form_params/"
-        if self is UrlCrawler.AFFILIATE_FLOCKSOCIAL:
-            return "https://affiliates.flocksocial.com/_form_params/"
-
+        
 
 class DataCrawler:
     def __init__(self, data):
@@ -735,93 +735,9 @@ class DataCrawler:
 
 
     async def LoginAndGetAuthAsync(self, url, payload, headers, allow_redirects=False, **kwargs):
-        if (UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url):
-            async def get_csrf_token_from_html(html_content):
-                soup = BeautifulSoup(html_content, "html.parser")
-                script_tag = soup.find(
-                    "script", string=lambda s: "window.configObj" in s
-                )
-                if script_tag:
-                    script_content = script_tag.string
-                    csrf_token_start = (
-                        script_content.find("csrf_token:") + len("csrf_token:")
-                        if script_content
-                        else None
-                    )
-                    csrf_token_end = (
-                        script_content.find(",", csrf_token_start)
-                        if script_content
-                        else None
-                    )
-                    csrf_token = (
-                        script_content[csrf_token_start:csrf_token_end]
-                        .strip()
-                        .strip("'\"")
-                        if script_content
-                        else None
-                    )
-                    return csrf_token
-                else:
-                    print(
-                        "Script not found or does not contain the necessary information."
-                    )
-
-            loginAPI = (
-                UrlCrawler.AFFILIATE_FLOCKSOCIAL.loginAPI
-                if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url
-                else UrlCrawler.AFFILIATE_WITHBLAZE.loginAPI
-            )
-            loginCheckAPI = (
-                UrlCrawler.AFFILIATE_FLOCKSOCIAL.loginCheckAPI
-                if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url
-                else UrlCrawler.AFFILIATE_WITHBLAZE.loginCheckAPI
-            )
-            tokenAPI = (
-                UrlCrawler.AFFILIATE_FLOCKSOCIAL.tokenAPI
-                if UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url
-                else UrlCrawler.AFFILIATE_WITHBLAZE.tokenAPI
-            )
-            async with aiohttp.ClientSession() as session:
-                r_ssid, r_csrf_token = None, None
-                async with session.get(str(loginAPI), headers={}) as res:
-                    if res.status == 200:
-                        ssid = res.cookies.get("TAPSESSID")
-                        headers = {"Cookie": f"TAPSESSID={ssid}"}
-                        async with session.get(str(tokenAPI), headers={}) as res_form:
-                            if res.status == 200:
-                                data_res = await res_form.json()
-                                token = data_res["token"]
-                                isCaptcha = data_res["needs_captcha"]
-                                payload = {
-                                    "_csrf_token": token,
-                                    "_username": kwargs.get("email"),
-                                    "_password": kwargs.get("password"),
-                                }
-                                if isCaptcha:
-                                    websiteKey = (
-                                        "6LdHHAcUAAAAACOdiyUe67H3Ym6s1kKeetuiuFjd"
-                                    )
-                                    payload[
-                                        "g-recaptcha-response"
-                                    ] = self.solve_captcha(url, websiteKey)
-                                async with session.post(
-                                    str(loginCheckAPI), headers=headers, data=payload
-                                ) as res_login:
-                                    isLoginSuccess = await res_login.text()
-                                    if "Dashboard | " in isLoginSuccess:
-                                        r_csrf_token = await get_csrf_token_from_html(
-                                            await res_login.text()
-                                        )
-                                        r_ssid = (
-                                            session.cookie_jar.filter_cookies(url)
-                                            .get("TAPSESSID")
-                                            .value
-                                        )
-                    return r_ssid, r_csrf_token
-        else:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=payload, headers=headers, allow_redirects=allow_redirects) as response:
-                    return await self.getAuthFromResponse(url, response, payload)
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=payload, headers=headers, allow_redirects=allow_redirects) as response:
+                return await self.getAuthFromResponse(url, response, payload)
 
     # step 3: fetch data
     def get_first_and_last_day(self, year, month):
@@ -1149,29 +1065,8 @@ class DataCrawler:
                         }
                         data.append(entry)
                 return data
-        elif (UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url):
-            ssid = kwargs.get("ssid")
-            csrf_token = kwargs.get("csrf_token")
-            current_date = datetime.now()
-            date_30_days_ago = current_date - timedelta(days=30)
-            date_format = "%Y-%m-%d"
-            # Convert to formatted strings
-            current_date_str = current_date.strftime(date_format)
-            date_30_days_ago_str = date_30_days_ago.strftime(date_format)
-            url = f"{url}/api-stateful/pi/reports-depr/date/?date_from={date_30_days_ago_str}&date_to={current_date_str}&sort_by=title&sort_direction=DESC&page=1"
-            payload = None
-            headers = {}
-            headers["Cookie"] = f"TAPSESSID={ssid}"
-            headers["X-Csrf-Token"] = csrf_token
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, data=payload) as response0:
-                    if response0.status == 200:
-                        dict_data = await response0.json()
-                        return dict_data["results"]
-                        # for item in dict_data["results"]:
-                        #     print(item)
-                    else:
-                        print("Error fetch data", response0.text)
+        
+        
         elif UrlCrawler.affise.value in url:
             headers = {
                 'Api-Key': kwargs.get('api_key', ''),
@@ -1443,14 +1338,7 @@ class DataCrawler:
             return await self.fetch_data(
                 UrlCrawler.NEURON_WRITER.dataAPI, sessionId=sessionId
             )
-        elif (UrlCrawler.AFFILIATE_FLOCKSOCIAL.value in url or UrlCrawler.AFFILIATE_WITHBLAZE.value in url):
-            ssid, csrf_token = await self.LoginAndGetAuthAsync(
-                url, None, None, email=email, password=password
-            )
-            if ssid:
-                return await self.fetch_data(url, ssid=ssid, csrf_token=csrf_token)
-            else:
-                print("Lấy token không thành công: {}".format(url))
+        
         elif UrlCrawler.AFFILIATLYCOM.value in url:
             return await self.fetch_data(url, email=email, password=password)
         elif (UrlCrawler.DESCRIBELY.value in url or UrlCrawler.POSTAFFILIATEPRO.value in url):
@@ -1497,7 +1385,7 @@ data = [
     # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
     # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
     # ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
-    # ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
+    ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
     # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9')
 ]
 
