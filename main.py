@@ -708,7 +708,7 @@ class DataCrawler:
                 if session_token:
                     return session_token
                 else:
-                    print("Session Token not found.")
+                    print("Session Token not found. Maybe This account has been locked.")
             except:
                 print("Hasoffers: Error extracting Session Token")
                 return
@@ -1448,9 +1448,9 @@ data = [
     # ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
     # ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
     # ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
-    ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+    # ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
     # ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
-    # ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
+    ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'), 
     # ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
     # ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
     # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
