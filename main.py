@@ -40,7 +40,6 @@ class Crawler:
         self.username = username
         self.password = password
 
-
 class DescribelyAndPostaffiliateproCrawler(Crawler):
     def __init__(self, url, username, password) -> None:
         super().__init__(url, username, password)
@@ -463,6 +462,108 @@ class DescribelyAndPostaffiliateproCrawler(Crawler):
                 balance=None
             )
 
+class TapfiliateCrawler(Crawler):
+    def __init__(self, url, username, password) -> None:
+        super().__init__(url, username, password)
+        self.csrf_token = None
+        self.x_csrf_token = None
+        self.ssid = None
+        self.default_headers = {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7,fr-FR;q=0.6,fr;q=0.5',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Sec-Ch-Ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+        }
+
+    def get_x_csrf_token_from_html(self, html_content):
+        soup = BeautifulSoup(html_content, 'html.parser')
+        script_tag = soup.find('script', string=lambda text: 'window.configObj' in str(text))
+        script_content = script_tag.string
+        csrf_token_start = script_content.find('csrf_token: "')
+        csrf_token_end = script_content.find('"', csrf_token_start + len('csrf_token: "'))
+        self.x_csrf_token = script_content[csrf_token_start + len('csrf_token: "'):csrf_token_end]
+
+    def get_csrf_token_from_html(self, html_content):
+        soup = BeautifulSoup(html_content, 'html.parser')
+        csrf_token_input = soup.find('input', {'name': '_csrf_token'})
+        if csrf_token_input:
+            self.csrf_token = csrf_token_input.get('value')
+
+    async def authen(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{self.url}/login", headers=self.default_headers) as res:
+                if res.status == 200:
+                    self.ssid = res.cookies.get('TAPSESSID').value
+                    html_content = await res.text()
+                    self.get_csrf_token_from_html(html_content)
+            if self.csrf_token:
+                headers = self.default_headers.copy()
+                headers['Cookie'] = f'TAPSESSID={self.ssid}'
+                payload = {
+                    "_csrf_token": self.csrf_token,
+                    "_username": self.username,
+                    "_password": self.password,
+                }
+                async with session.post(f"{self.url}/login_check", headers=headers, data=payload) as res:
+                    if res.status == 200:
+                        isLoginSuccess = await res.text()
+                        if "Dashboard | " in isLoginSuccess:
+                            html_content = await res.text()
+                            self.get_x_csrf_token_from_html(html_content)
+                            self.ssid = session.cookie_jar.filter_cookies(f"{self.url}/login_check").get("TAPSESSID").value
+    async def crawl(self):
+        await self.authen()
+        if(self.x_csrf_token):
+            headers = self.default_headers.copy()
+            headers['Cookie'] = f'TAPSESSID={self.ssid}'
+            headers['X-Csrf-Token'] = self.x_csrf_token
+            current_date = datetime.now()
+            date_30_days_ago = current_date - timedelta(days=30)
+            date_format = "%Y-%m-%d"
+            current_date_str = current_date.strftime(date_format)
+            date_30_days_ago_str = date_30_days_ago.strftime(date_format)
+            dataAPI = f"{self.url}/api-stateful/pi/reports-depr/month/?date_from={date_30_days_ago_str}&date_to={current_date_str}&sort_by=title&sort_direction=DESC&page=1"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(dataAPI, headers=headers, data={}) as response0:
+                    if response0.status == 200:
+                        dict_data = await response0.json()
+                        data = dict_data['results']
+                        total_summary = {
+                            'clicks': 0,
+                            'customers': 0,
+                            'approved_conversions': 0,
+                            'approved_conversion_amount': 0,
+                            'approved_commission_amount': 0,
+                            'approved_mlm_commission_amount': 0
+                        }
+                        for day in data:
+                            total_summary['clicks'] += day['clicks']
+                            total_summary['customers'] += day['customers']
+                            total_summary['approved_conversions'] += day['approved_conversions']
+                            total_summary['approved_conversion_amount'] += day['approved_conversion_amount']
+                            total_summary['approved_commission_amount'] += day['approved_commission_amount']
+                            total_summary['approved_mlm_commission_amount'] += day['approved_mlm_commission_amount']
+                        name = "affiliates.flocksocial" if "affiliates.flocksocial" in self.url else "affiliates.withblaze"
+                        return fomatOutput(
+                            name=name,
+                            click=total_summary['clicks'],
+                            ref=total_summary['customers'],
+                            sale=None,
+                            commission=total_summary['approved_commission_amount'],
+                            balance=total_summary['approved_conversion_amount']
+                        )
+
+        else:
+            print(f"Error: Tapfiliate Crawl Fail!!!")
 class UrlCrawler(Enum):
     Goaffpro = "https://allpowers.goaffpro.com/login"
     Meross_Goaffpro = "https://meross-affiliate.goaffpro.com/login"
@@ -478,8 +579,8 @@ class UrlCrawler(Enum):
     AFFILIATE_SIMPLYBOOK = "affiliate.simplybook.me"
     AFFILIATE_VIPRE = "affiliate.vipre.com"
     NEURON_WRITER = "app.neuronwriter.com"
-    Tapfiliate_withblaze = 'https://affiliates.withblaze.app/'
-    Tapfiliate_flocksocial = 'https://affiliates.flocksocial.com'
+    Tapfiliate_withblaze = 'affiliates.withblaze.app'
+    Tapfiliate_flocksocial = 'affiliates.flocksocial.com'
     AFFILIATLYCOM = "affiliatly.com"
     POSTAFFILIATEPRO = "https://aejuice.postaffiliatepro.com/"
     DESCRIBELY = "https://partners.describely.ai/affiliates/login.php"
@@ -1448,7 +1549,6 @@ class DataCrawler:
             return await self.fetch_data(
                 UrlCrawler.NEURON_WRITER.dataAPI, sessionId=sessionId
             )
-
         elif UrlCrawler.AFFILIATLYCOM.value in url:
             return await self.fetch_data(url, email=email, password=password)
         elif (UrlCrawler.DESCRIBELY.value in url or UrlCrawler.POSTAFFILIATEPRO.value in url):
@@ -1464,8 +1564,10 @@ class DataCrawler:
             result = await self.LoginAndGetAuthAsync(UrlCrawler.affise.loginAPI, payload, headers, True)
             if result:
                 api_key, access_header, refresh_header = result
-                return await self.fetch_data(url, api_key=api_key, access_header=access_header,
-                                             refresh_header=refresh_header)
+                return await self.fetch_data(url, api_key=api_key, access_header=access_header, refresh_header=refresh_header)
+        elif (UrlCrawler.Tapfiliate_flocksocial.value in url or UrlCrawler.Tapfiliate_withblaze.value in url):
+            crawler = TapfiliateCrawler(*args)
+            return await crawler.crawl()
 
     async def crawl(self):
         result = await pl.task.map(self.crawl_data, self.data, workers=100)
@@ -1473,32 +1575,32 @@ class DataCrawler:
 
 
 data = [
-    ("https://allpowers.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    ("https://meross-affiliate.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    ("https://www.shoutout.global/login?id=22wbe", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
-    ("https://www.shoutout.global/login?id=obbi7", "teamasmads@gmail.com", "E9vQRQmPG!a.7m6"),
-    ("https://af.uppromote.com/solar-power-store-canada/login", "teamasmads@gmail.com", "2N*G5k$7ux5j2!F"),
-    ('https://app.linkmink.com/login', 'evenelson380df@gmail.com', 'jfLo3HlVelSxkKQ'),
-    ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
-    ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
-    ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
-    ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
-    ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'), #This affiliate program has been deactivated by the owner
-    ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
-    ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
-    ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
-    ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
-    ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
+    # ("https://allpowers.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    # ("https://meross-affiliate.goaffpro.com/login", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    # ("https://www.shoutout.global/login?id=22wbe", "natashacook371sdas@gmail.com", "Qxwg0CN09v"),
+    # ("https://www.shoutout.global/login?id=obbi7", "teamasmads@gmail.com", "E9vQRQmPG!a.7m6"),
+    # ("https://af.uppromote.com/solar-power-store-canada/login", "teamasmads@gmail.com", "2N*G5k$7ux5j2!F"),
+    # ('https://app.linkmink.com/login', 'evenelson380df@gmail.com', 'jfLo3HlVelSxkKQ'),
+    # ('https://affiliates.fiverr.com/login', 'beckyross766re@gmail.com', 'Niyj6MU30j'),
+    # ('https://thelogocompany.net/affiliate-area', 'evenelson380df@gmail.com', 'xL&i172j@]'),
+    # ('https://api.getreditus.com/auth/sign_in', 'alishacooper125we@gmail.com', 'sB"K3??9^8;n'),
+    # ('https://api.getreditus.com/auth/sign_in', 'staakerole@gmail.com', 'QqHzAXjVR8#uBBN'),
+    # ('https://cramly.leaddyno.com/sso', 'teamasmads@gmail.com', 'yqZWRKe6hrYmS4u'), #This affiliate program has been deactivated by the owner
+    # ('https://tradelle.leaddyno.com/sso', 'teamasmads@gmail.com', '2fijD4FNfM4Z@pj'),
+    # ('https://affiliate.hide-my-ip.com/login.php', 'beckyanderson23g', 'CqA5v9BvI6J0'),
+    # ('https://affiliate.simplybook.me/login.php', 'emilymurphy965df', 'L4AYLVa97S'),
+    # ('https://affiliate.vipre.com/', 'evenelson380df@gmail.com', 'A61yIU8g4!f)'),
+    # ('https://affiliate.vipre.com/', 'alishacooper125we@gmail.com', 'J9figOCIfbMICXB'),
     # ('https://affiliate.vipre.com/', 'asmlongle@gmail.com', 'tj5kLv2dNmZgZ!f'),
-    ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
+    # ('https://app.neuronwriter.com/ucp/', 'eleanorlewis676rsdf@gmail.com', 'C9xvPC$SCcU;6~V'),
 
-    ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
-    ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
-    ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
-    ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
-    ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
-    # ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
-    # ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9')
+    # ('https://www.affiliatly.com/af-1031650/affiliate.panel', 'teamasmads@gmail.com', '2N*G5k$7ux5j2!F'),
+    # ('https://www.affiliatly.com/af-1040475/affiliate.panel', 'beckyanderson23g@gmail.com', '9qWWo95F31Nq@'),
+    # ('https://aejuice.postaffiliatepro.com/affiliates/', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b'),
+    # ('https://partners.describely.ai/affiliates/login.php', 'emilymurphy965df@gmail.com', 'heqadqlTk8Z601T'),
+    # ('https://planner5d.affise.com/v2', 'charlotteflores549sd@gmail.com', 'Utuw1ZR05b@'),
+    ("https://affiliates.withblaze.app", "maddietaylor376cv@gmail.com", "Aceu9YO60m"),
+    ('https://affiliates.flocksocial.com', 'beckyanderson23g@gmail.com', 'hI8p63uW90a9')
 ]
 
 
