@@ -4,3 +4,4 @@ capmonstercloudclient
 pypeln
 playwright
 bs4
+Brotli
